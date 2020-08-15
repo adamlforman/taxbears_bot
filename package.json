@@ -6,7 +6,6 @@
 	"author": "Adam Forman",
 	"dependencies": {
 		"discord.js": "^12.3.0",
-		"node-windows": "^1.0.0-beta.5",
 		"winston": "^3.3.3"
 	}
 }
