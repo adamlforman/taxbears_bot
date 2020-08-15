@@ -1,0 +1,11 @@
+{
+	"name": "AdamsBot",
+	"version": "0.0.1",
+	"description": "My First Discord Bot",
+	"main": "bot.js",
+	"author": "Adam Forman",
+	"dependencies": {
+		"discord.js": "^12.3.0",
+		"winston": "^3.3.3"
+	}
+}
