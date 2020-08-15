@@ -1,18 +1,45 @@
 'use strict';
 
 const Discord = require('discord.js');
+const fs = require('fs');
 var auth = require('./auth.json');
+const { stream } = require('winston');
 
 // Initialize Discord Bot
 const client = new Discord.Client();
 
+const logFilePath = "log.txt";
+
+let getLogFile = () => {
+	return fs.readFileSync(logFilePath, {
+		encoding: "utf-8"
+	});
+};
+
+let logWriteStream;
+
 client.on('ready', function (evt) {
-    console.log('Connected');
+	console.log('Connected to Discord server.');
+	
+	console.log('Finding log file...');
+
+	// This will create the file if it does not exist, but will not
+	// overwrite its contents if it already does.
+	//let streamFlags = fs.existsSync(logFilePath) ? "r+": "w+";
+
+	logWriteStream = fs.createWriteStream(logFilePath, {
+		flags: "as+"
+	});
+
+	if (!logWriteStream) {
+		console.log("Error creating write stream to log file. Configured path: " + logFilePath);
+	}
+	else {
+		console.log("Connected to log file.");
+	}
 });
 
 client.login(auth.token);
-
-let mostRecentVoiceChange;
 
 client.on('message', function (message) {
 	let messageContent = message.content;
@@ -37,10 +64,14 @@ client.on('message', function (message) {
                 message.channel.send(whoReply);
                 break;
 			case 'whowasthat':
-				let lastEvent = mostRecentVoiceChange;
+				let logFileContents = getLogFile();
+
+				let allEvents = logFileContents.split('\n');
+				console.log(allEvents);
+				let lastEvent = allEvents[allEvents.length - 1];
+
 				if (lastEvent) {
-					let whoWasThatReply = lastEvent.userName + ' ' + lastEvent.eventType + ': ' + lastEvent.channelName;
-					message.channel.send(whoWasThatReply);
+					message.channel.send(lastEvent);
 				}
 				else {
 					message.channel.send("Sorry, I don't have a record of a recent connection / disconnection. ");
@@ -88,13 +119,8 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 		eventType = "disconnected from channel";
 	}
 	
-	let connectEvent = {
-		userName,
-		channelName,
-		eventType
-	};
-	
-	console.log(connectEvent);
-	
-	mostRecentVoiceChange = connectEvent;
+	let eventString = '\n' + userName + ' ' + eventType + ': ' + channelName;
+	logWriteStream.write(eventString, () => {
+		console.log("Wrote connection event to stream. ");
+	});
 });

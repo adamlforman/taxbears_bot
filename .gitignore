@@ -105,3 +105,4 @@ dist
 
 # Windows daemon files
 daemon/**
+log.txt
