@@ -17,6 +17,8 @@ let getLogFile = () => {
 };
 
 let logWriteStream;
+let storedConnectionEvents = [];
+const maxEventsStored = 5;
 
 client.on('ready', function (evt) {
 	console.log('Connected to Discord server.');
@@ -54,27 +56,59 @@ client.on('message', function (message) {
         switch (cmd) {
             // !ping
             case 'ping':
-				message.channel.send('Pong!');
+				message.channel.send('pong!');
                 break;
+			case 'pong':
+				message.channel.send('ping!');
+				break;
             case 'echo':
 				message.channel.send(messageContent.substring(6));
                 break;
             case 'whoami':
-				let whoReply = 'You are <@' + message.member.displayName + '>.';
+				let whoReply = 'You are ' + message.member.user.username + '.';
                 message.channel.send(whoReply);
                 break;
 			case 'whowasthat':
-				let logFileContents = getLogFile();
-
-				let allEvents = logFileContents.split('\n');
-				console.log(allEvents);
-				let lastEvent = allEvents[allEvents.length - 1];
-
-				if (lastEvent) {
-					message.channel.send(lastEvent);
+				let intArg = parseInt(messageContent.substring(12));
+				
+				if (!intArg) {
+					intArg = 1;
 				}
-				else {
-					message.channel.send("Sorry, I don't have a record of a recent connection / disconnection. ");
+
+				/*
+				let logFileContents = getLogFile();
+				let allEvents = logFileContents.split('\n');				
+				*/
+
+				let allEvents = storedConnectionEvents;
+
+				if (intArg > 1 && intArg > allEvents.length) {
+					intArg = allEvents.length;
+				}
+				for (let i = 1; i <= intArg; i++) {
+					/*
+					let lastEventJson = allEvents[allEvents.length - i];
+					let obj;
+
+					if (lastEventJson) {
+						obj = JSON.parse(lastEventJson);
+					}*/
+
+					let obj = allEvents[allEvents.length - i];
+
+					if (obj) {
+						let legibleEventString = timeSince(obj.timestamp) + ', ' + obj.userName + ' ' + obj.eventType + ': ' + obj.channelName;
+						message.channel.send(legibleEventString);
+					}
+				
+					else {
+						// if we have fewer than requested records, don't print apology when we run out
+						if (i > 1) {
+							break;
+						}
+						message.channel.send("Sorry, I don't have a record of a recent connection / disconnection. ");
+						break;
+					}
 				}
 				break;
 
@@ -103,10 +137,10 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 	
 	let userName = "placeHolderUserName"
 	if (newMember && newMember != {}) {
-		userName = newMember.member.displayName
+		userName = newMember.member.user.username
 	}
 	else if (oldMember != {}) {
-		userName = oldMember.member.displayName
+		userName = oldMember.member.user.username
 	}
 	
 	let channelName = (newUserChannel || oldUserChannel);
@@ -119,8 +153,45 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 		eventType = "disconnected from channel";
 	}
 	
-	let eventString = '\n' + userName + ' ' + eventType + ': ' + channelName;
-	logWriteStream.write(eventString, () => {
+	let timestamp = Date.now();
+
+	let connectEvent = {
+		timestamp,
+		userName,
+		eventType,
+		channelName
+	};
+
+
+	storedConnectionEvents.unshift(connectEvent);
+	while(storedConnectionEvents.length > maxEventsStored) {
+		storedConnectionEvents.pop();
+	}
+
+	/*
+	let eventJson = '\n' + JSON.stringify(connectEvent);
+
+	logWriteStream.write(eventJson, () => {
 		console.log("Wrote connection event to stream. ");
-	});
+	});*/
 });
+
+var timeSince = function(timestamp) {
+	var now = new Date(),
+    secondsPast = (now.getTime() - timestamp) / 1000;
+	if (secondsPast < 60) {
+		return parseInt(secondsPast) + ' seconds ago';
+	}
+	if (secondsPast < 3600) {
+		return parseInt(secondsPast / 60) + ' minutes ago';
+	}
+	if (secondsPast <= 86400) {
+		return parseInt(secondsPast / 3600) + ' hours ago';
+	}
+	if (secondsPast > 86400) {
+		day = timestamp.getDate();
+		month = timestamp.toDateString().match(/ [a-zA-Z]*/)[0].replace(" ", "");
+		year = timestamp.getFullYear() == now.getFullYear() ? "" : " " + timestamp.getFullYear();
+		return day + " " + month + year;
+	}
+};
