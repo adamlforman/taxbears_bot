@@ -43,78 +43,81 @@ client.on('ready', function (evt) {
 
 client.login(auth.token);
 
+const prefix = '!';
+
 client.on('message', function (message) {
 	let messageContent = message.content;
 
     // Our bot needs to know if it will execute a command
-    // It will listen for messages that will start with `!`
-    if (messageContent.substring(0, 1) == '!') {
-        console.log(messageContent);
-        var args = messageContent.substring(1).split(' ');
-        var cmd = args[0].toLowerCase();
+	// It will listen for messages that will start with `!`
+    if (!messageContent.startsWith(prefix) || message.author.bot)  {
+		return;
+	}
+		
+	let args = messageContent.substring(1).split(' ');
 
-        switch (cmd) {
-            // !ping
-            case 'ping':
-				message.channel.send('pong!');
-                break;
-			case 'pong':
-				message.channel.send('ping!');
-				break;
-            case 'echo':
-				message.channel.send(messageContent.substring(6));
-                break;
-            case 'whoami':
-				let whoReply = 'You are ' + message.member.user.username + '.';
-                message.channel.send(whoReply);
-                break;
-			case 'whowasthat':
-				let intArg = parseInt(messageContent.substring(12));
-				
-				if (!intArg) {
-					intArg = 1;
-				}
+	let cmd = args.shift().toLowerCase();
 
+	switch (cmd) {
+		case 'ping':
+			message.channel.send('pong!');
+			break;
+		case 'pong':
+			message.channel.send('ping!');
+			break;
+		case 'echo':
+			message.channel.send(args.join(' '));
+			break;
+		case 'whoami':
+			let whoReply = 'You are ' + message.member.user.username + '.';
+			message.channel.send(whoReply);
+			break;
+		case 'whowasthat':
+			let intArg = parseInt(args.shift());
+			
+			if (!intArg) {
+				intArg = 1;
+			}
+
+			/*
+			let logFileContents = getLogFile();
+			let allEvents = logFileContents.split('\n');				
+			*/
+
+			let allEvents = storedConnectionEvents;
+
+			if (intArg > 1 && intArg > allEvents.length) {
+				intArg = allEvents.length;
+			}
+			for (let i = 1; i <= intArg; i++) {
 				/*
-				let logFileContents = getLogFile();
-				let allEvents = logFileContents.split('\n');				
-				*/
+				let lastEventJson = allEvents[allEvents.length - i];
+				let obj;
 
-				let allEvents = storedConnectionEvents;
+				if (lastEventJson) {
+					obj = JSON.parse(lastEventJson);
+				}*/
 
-				if (intArg > 1 && intArg > allEvents.length) {
-					intArg = allEvents.length;
+				let obj = allEvents[allEvents.length - i];
+
+				if (obj) {
+					let legibleEventString = timeSince(obj.timestamp) + ', ' + obj.userName + ' ' + obj.eventType + ': ' + obj.channelName;
+					message.channel.send(legibleEventString);
 				}
-				for (let i = 1; i <= intArg; i++) {
-					/*
-					let lastEventJson = allEvents[allEvents.length - i];
-					let obj;
-
-					if (lastEventJson) {
-						obj = JSON.parse(lastEventJson);
-					}*/
-
-					let obj = allEvents[allEvents.length - i];
-
-					if (obj) {
-						let legibleEventString = timeSince(obj.timestamp) + ', ' + obj.userName + ' ' + obj.eventType + ': ' + obj.channelName;
-						message.channel.send(legibleEventString);
-					}
-				
-					else {
-						// if we have fewer than requested records, don't print apology when we run out
-						if (i > 1) {
-							break;
-						}
-						message.channel.send("Sorry, I don't have a record of a recent connection / disconnection. ");
+			
+				else {
+					// if we have fewer than requested records, don't print apology when we run out
+					if (i > 1) {
 						break;
 					}
+					message.channel.send("Sorry, I don't have a record of a recent connection / disconnection. ");
+					break;
 				}
-				break;
+			}
+			break;
 
-            // Just add any case commands if you want to..
-        }
-    }
+		// Just add any case commands if you want to..
+	}
 });
 
 client.on('voiceStateUpdate', (oldMember, newMember) => {
@@ -163,9 +166,9 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 	};
 
 
-	storedConnectionEvents.unshift(connectEvent);
+	storedConnectionEvents.push(connectEvent);
 	while(storedConnectionEvents.length > maxEventsStored) {
-		storedConnectionEvents.pop();
+		storedConnectionEvents.shift();
 	}
 
 	/*
