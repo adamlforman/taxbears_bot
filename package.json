@@ -1,12 +1,12 @@
 {
-	"name": "AdamsBot",
-	"version": "0.0.1",
-	"description": "My First Discord Bot",
+	"name": "taxbears_bot",
+	"version": "0.0.2",
+	"description": "A Discord bot for the Taxbears server",
 	"main": "bot.js",
 	"author": "Adam Forman",
 	"dependencies": {
 		"discord.js": "^12.3.0",
-		"node-windows": "^1.0.0-beta.5",
+		"fs": "0.0.1-security",
 		"winston": "^3.3.3"
 	}
 }
