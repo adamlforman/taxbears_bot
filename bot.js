@@ -3,7 +3,6 @@
 const Discord = require('discord.js');
 const fs = require('fs');
 var auth = require('./auth.json');
-const { stream } = require('winston');
 
 // Initialize Discord Bot
 const client = new Discord.Client();
@@ -16,7 +15,11 @@ let getLogFile = () => {
 	});
 };
 
-let logWriteStream;
+let logWriteStream = () => {
+	return fs.createWriteStream(logFilePath, {
+		flags: "w+"
+	});
+};
 let storedConnectionEvents = [];
 const maxEventsStored = 5;
 
@@ -25,20 +28,18 @@ client.on('ready', function (evt) {
 	
 	console.log('Finding log file...');
 
-	// This will create the file if it does not exist, but will not
-	// overwrite its contents if it already does.
-	//let streamFlags = fs.existsSync(logFilePath) ? "r+": "w+";
+	let savedLogs = getLogFile();
 
-	logWriteStream = fs.createWriteStream(logFilePath, {
-		flags: "as+"
-	});
-
-	if (!logWriteStream) {
-		console.log("Error creating write stream to log file. Configured path: " + logFilePath);
+	if (savedLogs) {
+		storedConnectionEvents = JSON.parse(savedLogs);
+		
+		console.log("Read in " + storedConnectionEvents.length + "logs from log file.");	
 	}
+	
 	else {
-		console.log("Connected to log file.");
+		console.log("No logs found in file.");
 	}
+
 });
 
 client.login(auth.token);
@@ -72,6 +73,10 @@ client.on('message', function (message) {
 			let whoReply = 'You are ' + message.member.user.username + '.';
 			message.channel.send(whoReply);
 			break;
+		case 'pizza':
+			let pizza = '😀  🍕🍕🍕🍕  😊';
+			message.channel.send(pizza);
+			break;
 		case 'whowasthat':
 			let intArg = parseInt(args.shift());
 			
@@ -79,24 +84,12 @@ client.on('message', function (message) {
 				intArg = 1;
 			}
 
-			/*
-			let logFileContents = getLogFile();
-			let allEvents = logFileContents.split('\n');				
-			*/
-
 			let allEvents = storedConnectionEvents;
 
 			if (intArg > 1 && intArg > allEvents.length) {
 				intArg = allEvents.length;
 			}
 			for (let i = 1; i <= intArg; i++) {
-				/*
-				let lastEventJson = allEvents[allEvents.length - i];
-				let obj;
-
-				if (lastEventJson) {
-					obj = JSON.parse(lastEventJson);
-				}*/
 
 				let obj = allEvents[allEvents.length - i];
 
@@ -107,7 +100,7 @@ client.on('message', function (message) {
 			
 				else {
 					// if we have fewer than requested records, don't print apology when we run out
-					if (i > 1) {
+					if (i > 1 && intArg !== 1) {
 						break;
 					}
 					message.channel.send("Sorry, I don't have a record of a recent connection / disconnection. ");
@@ -152,8 +145,11 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 	if (newUserChannel && !oldUserChannel) {
 		eventType = "connected to channel";
 	}
-	if (!newUserChannel && oldUserChannel) {
+	else if (!newUserChannel && oldUserChannel) {
 		eventType = "disconnected from channel";
+	}
+	else {
+		return;
 	}
 	
 	let timestamp = Date.now();
@@ -170,6 +166,8 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 	while(storedConnectionEvents.length > maxEventsStored) {
 		storedConnectionEvents.shift();
 	}
+
+	logWriteStream().write(JSON.stringify(storedConnectionEvents));
 
 	/*
 	let eventJson = '\n' + JSON.stringify(connectEvent);
