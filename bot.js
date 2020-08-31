@@ -177,9 +177,20 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 	});*/
 });
 
+/**
+ * 
+ * @param {Date} timestamp 
+ */
 var timeSince = function(timestamp) {
+	let dateTime;
+	if (timestamp) {
+		dateTime = new Date(timestamp);
+	}
+	else {
+		return "<Time Parse Error>";
+	}
 	var now = new Date(),
-    secondsPast = (now.getTime() - timestamp) / 1000;
+    secondsPast = (now.getTime() - dateTime) / 1000;
 	if (secondsPast < 60) {
 		return parseInt(secondsPast) + ' seconds ago';
 	}
@@ -190,9 +201,9 @@ var timeSince = function(timestamp) {
 		return parseInt(secondsPast / 3600) + ' hours ago';
 	}
 	if (secondsPast > 86400) {
-		day = timestamp.getDate();
-		month = timestamp.toDateString().match(/ [a-zA-Z]*/)[0].replace(" ", "");
-		year = timestamp.getFullYear() == now.getFullYear() ? "" : " " + timestamp.getFullYear();
-		return day + " " + month + year;
+		let day = dateTime.getDate();
+		let month = dateTime.toDateString().match(/ [a-zA-Z]*/)[0].replace(" ", "");
+		let year = dateTime.getFullYear() == now.getFullYear() ? "" : " " + dateTime.getFullYear();
+		return "On " + day + " " + month + year;
 	}
 };
