@@ -1,7 +1,9 @@
+'use strict';
+
 var Service = require('node-windows').Service;
 // Create a new service object
 var svc = new Service({
-     name:'Taxbears Bot',
+     name:'TaxBot',
      description: 'A Discord bot for the Taxbears server.',
      script: 'bot.js'
 });
@@ -11,6 +13,9 @@ var svc = new Service({
 
 svc.on('install',function(){
            svc.start();
+           console.log(svc);
 });
 
 svc.install();
+
+console.log(svc.script);
