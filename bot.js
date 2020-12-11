@@ -81,10 +81,28 @@ client.on('message', function (message) {
 			break;
 		case 'mtg':
 		case 'mtgcard':
+			let foundCard = false;
+
 			const cardPromise = getMtgCardUrlByName(args);
-			cardPromise.then((cardUrl) => {
-				message.channel.send(cardUrl);
+			const delayPromise = new Promise((resolve, reject) => {
+				setTimeout(resolve,1000);
 			});
+
+			delayPromise.then((_) => {
+				if (!foundCard) {
+					message.channel.send(`Searching for an image of the card '${args.join(' ')}'...`);
+				}
+			}).catch((reason) => {
+				message.channel.send("An unexpected error occurred retrieving the card image: "+ reason);
+			});
+			
+			cardPromise.then((cardUrl) => {
+				message.channel.send(cardUrl);				
+				foundCard = true;
+			}).catch((reason) => {
+				message.channel.send("An unexpected error occurred retrieving the card image: "+ reason);
+			});
+
 			break;
 		case 'whowasthat':
 			let intArg = parseInt(args.shift());
