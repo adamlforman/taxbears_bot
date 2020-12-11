@@ -2,6 +2,7 @@
 
 const Discord = require('discord.js');
 const fs = require('fs');
+const mtg = require('mtgsdk');
 var auth = require('./auth.json');
 
 // Initialize Discord Bot
@@ -61,7 +62,8 @@ client.on('message', function (message) {
 
 	switch (cmd) {
 		case 'ping':
-			message.channel.send('pong!');
+			message.reply('pong!');
+			//message.channel.send('pong!');
 			break;
 		case 'pong':
 			message.channel.send('ping!');
@@ -76,6 +78,15 @@ client.on('message', function (message) {
 		case 'pizza':
 			let pizza = '😀  🍕🍕🍕🍕  😊';
 			message.channel.send(pizza);
+			break;
+		case 'mtg':
+		case 'mtgcard':
+			const responsePromise = message.reply(`Searching for "${args.join(' ')}"...`);
+			const cardPromise = getMtgCardUrlByName(args.join(' '));
+			Promise.all([responsePromise, cardPromise]).then(([waitMsg, cardUrl]) =>
+			{
+				waitMsg.edit(cardUrl);
+			});
 			break;
 		case 'whowasthat':
 			let intArg = parseInt(args.shift());
@@ -207,3 +218,18 @@ var timeSince = function(timestamp) {
 		return "On " + day + " " + month + year;
 	}
 };
+
+/**
+ * Given the whole or partial name of a Magic, the Gathering card,
+ * retrieve a URL for an image of the card
+ * @param {string} cardName The name of the card
+ */
+var getMtgCardUrlByName = async function(cardName) {
+	const cards = await mtg.card.where({ name: cardName });
+	if (!cards || cards.length === 0 || !cards[0] || !cards[0].imageUrl) {
+		return `I couldn't find an image for a Magic: the Gathering card with ${cardName} in its name, sorry.`;
+	}
+	else {
+		return cards[0].imageUrl;
+	}
+}
