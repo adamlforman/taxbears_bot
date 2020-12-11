@@ -7,7 +7,7 @@
 	"dependencies": {
 		"discord.js": "^12.5.1",
 		"fs": "0.0.1-security",
-		"mtgsdk": "^0.4.3",
+		"node-fetch": "^2.6.1",
 		"winston": "^3.3.3"
 	}
 }

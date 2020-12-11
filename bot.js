@@ -2,7 +2,7 @@
 
 const Discord = require('discord.js');
 const fs = require('fs');
-const mtg = require('mtgsdk');
+const fetch = require("node-fetch");
 var auth = require('./auth.json');
 
 // Initialize Discord Bot
@@ -35,7 +35,7 @@ client.on('ready', function (evt) {
 	if (savedLogs) {
 		storedConnectionEvents = JSON.parse(savedLogs);
 		
-		console.log("Read in " + storedConnectionEvents.length + "logs from log file.");	
+		console.log("Read in " + storedConnectionEvents.length + " logs from log file.");	
 	}
 	
 	else {
@@ -63,8 +63,7 @@ client.on('message', function (message) {
 
 	switch (cmd) {
 		case 'ping':
-			message.reply('pong!');
-			//message.channel.send('pong!');
+			message.channel.send('pong!');
 			break;
 		case 'pong':
 			message.channel.send('ping!');
@@ -82,11 +81,9 @@ client.on('message', function (message) {
 			break;
 		case 'mtg':
 		case 'mtgcard':
-			const responsePromise = message.reply(`Searching for "${args.join(' ')}"...`);
-			const cardPromise = getMtgCardUrlByName(args.join(' '));
-			Promise.all([responsePromise, cardPromise]).then(([waitMsg, cardUrl]) =>
-			{
-				waitMsg.edit(cardUrl);
+			const cardPromise = getMtgCardUrlByName(args);
+			cardPromise.then((cardUrl) => {
+				message.channel.send(cardUrl);
 			});
 			break;
 		case 'whowasthat':
@@ -204,13 +201,16 @@ var timeSince = function(timestamp) {
 	var now = new Date(),
     secondsPast = (now.getTime() - dateTime) / 1000;
 	if (secondsPast < 60) {
-		return parseInt(secondsPast) + ' seconds ago';
+		let numSecs = parseInt(secondsPast);
+		return `${numSecs} second${numSecs > 1 ? 's' : ''} ago`;
 	}
 	if (secondsPast < 3600) {
-		return parseInt(secondsPast / 60) + ' minutes ago';
+		let numMins = parseInt(secondsPast / 60);
+		return `${numMins} minute${numMins > 1 ? 's' : ''} ago`;
 	}
 	if (secondsPast <= 86400) {
-		return parseInt(secondsPast / 3600) + ' hours ago';
+		let numHrs = parseInt(secondsPast / 3600);
+		return `${numHrs} hour${numHrs > 1 ? 's' : ''} ago`;
 	}
 	if (secondsPast > 86400) {
 		let day = dateTime.getDate();
@@ -221,16 +221,21 @@ var timeSince = function(timestamp) {
 };
 
 /**
- * Given the whole or partial name of a Magic, the Gathering card,
+ * Given the whole, exact name of a Magic, the Gathering card,
  * retrieve a URL for an image of the card
- * @param {string} cardName The name of the card
+ * @param {string} cardArgs The name of the card, a a string array
  */
-var getMtgCardUrlByName = async function(cardName) {
-	const cards = await mtg.card.where({ name: cardName });
-	if (!cards || cards.length === 0 || !cards[0] || !cards[0].imageUrl) {
-		return `I couldn't find an image for a Magic: the Gathering card with ${cardName} in its name, sorry.`;
+var getMtgCardUrlByName = async function(cardArgs) {
+	const scryfallApiUrl = 'https://api.scryfall.com/cards/named?format=image&fuzzy=';
+
+	let fetchUrl = scryfallApiUrl + cardArgs.join('+');
+	console.log("fetching from "+fetchUrl);
+	const fetchPromise = await fetch(fetchUrl);
+	
+	if (fetchPromise.redirected) {
+		return fetchPromise.url;
 	}
 	else {
-		return cards[0].imageUrl;
-	}
+		return `I couldn't find an image for the Magic: the Gathering card named "${cardArgs.join(' ')}". You may need to be more specific.`;
+	}	
 }
