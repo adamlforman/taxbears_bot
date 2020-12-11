@@ -12,7 +12,8 @@ const logFilePath = "log.txt";
 
 let getLogFile = () => {
 	return fs.readFileSync(logFilePath, {
-		encoding: "utf-8"
+		encoding: "utf-8",
+		flag: 'as+'
 	});
 };
 
@@ -72,7 +73,7 @@ client.on('message', function (message) {
 			message.channel.send(args.join(' '));
 			break;
 		case 'whoami':
-			let whoReply = 'You are ' + message.member.user.username + '.';
+			let whoReply = 'You are ' + message.author.username + '.';
 			message.channel.send(whoReply);
 			break;
 		case 'pizza':
