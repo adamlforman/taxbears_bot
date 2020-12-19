@@ -110,10 +110,15 @@ export default class TaxBot {
 					message.channel.send(pizza);
 					break;
 				case 'mtg':
-				case 'mtgcard':
+				case 'mtgcard':					
+					const errorMessage = "An unexpected error occurred retrieving the card image: ";
+					
+					let messageToSend = errorMessage;
 					let foundCard = false;
 					
-					const cardPromise = this.getMtgCardUrlByName(args);
+					// use promises to send a "searching..." message
+					// if the fetch takes more than 1 second
+					const cardPromise = getMtgCardUrlByName(args);
 					const delayPromise = new Promise((resolve, reject) => {
 						setTimeout(resolve,1000);
 					});
@@ -123,40 +128,22 @@ export default class TaxBot {
 							message.channel.send(`Searching for an image of the card '${args.join(' ')}'...`);
 						}
 					}).catch((reason) => {
-						message.channel.send("An unexpected error occurred retrieving the card image: "+ reason);
+						messageToSend = errorMessage + reason;
 					});
 					
 					cardPromise.then((cardUrl) => {
-						message.channel.send(cardUrl);				
+						messageToSend = cardUrl;				
 						foundCard = true;
 					}).catch((reason) => {
-						message.channel.send("An unexpected error occurred retrieving the card image: "+ reason);
+						messageToSend = errorMessage + reason;
 					});
-					
+
+					message.channel.send(messageToSend);
 					break;
 				case 'whowasthat':
-					// read in the first argument as a specified number of events to return
-					let intArg = parseInt(args.shift());
-					
-					let messageToSend = "An unexpected error occurred while retrieving recent connection events. ";
-					
-					if (!this.storedConnectionEvents || !this.storedConnectionEvents.length) {
-						messageToSend = "Sorry, I don't have a record of a recent connection / disconnection. ";
-					}
-					else {				
-						// Default to 1 request if no arg specified. Ensure we don't exceed array length.
-						let numToRead = intArg ? Math.min(intArg, this.storedConnectionEvents.length) : 1;
-						
-						// Grab the last (numEventsRequested) elements of the stored events (not exceeding the array's length)
-						// Convert each of them to a legible string, and then concatenate them to each other with newlines
-						let strEvents = this.storedConnectionEvents.slice(-1 * numToRead)
-																	.reverse()	// Array stores events in chronological order
-																	//.map((conEvent) => stringifyConnectionEvent(conEvent))
-																	.join('\n');
-						
-						// If there's more than 1 event being returned, add a prefix line so that the records line up nicely
-						messageToSend = numToRead === 1 ? strEvents : `The ${numToRead} most recent events are: \n` + strEvents;
-					}
+					const events = this.storedConnectionEvents;
+
+					let messageToSend = parseConnectionEvents(args, events);
 					
 					message.channel.send(messageToSend);
 					break;
@@ -196,32 +183,49 @@ export default class TaxBot {
 		// Update the file backup
 		this.logWriteStream.write(JSON.stringify(this.storedConnectionEvents));
 	}
+}
 
-	/**
-	 * Given the whole, exact name of a Magic, the Gathering card,
-	 * retrieve a URL for an image of the card
-	 * @param {string} cardArgs The name of the card, a a string array
-	 */
-	async getMtgCardUrlByName(cardArgs) {
-		const scryfallApiUrl = 'https://api.scryfall.com/cards/named?format=image&fuzzy=';
+function parseConnectionEvents(args, events) {
+	// read in the first argument as a specified number of events to return
+	let intArg = parseInt(args.shift());
 
-		let fetchUrl = scryfallApiUrl + cardArgs.join('+');
-		console.log("fetching from "+fetchUrl);
-		const fetchPromise = await fetch(fetchUrl);
-		
-		if (fetchPromise.redirected) {
-			return fetchPromise.url;
-		}
-		else {
-			return `I couldn't find an image for the Magic: the Gathering card named "${cardArgs.join(' ')}". You may need to be more specific.`;
-		}	
+	let messageToSend = "An unexpected error occurred while retrieving recent connection events. ";
+
+	if (!events || !events.length) {
+		messageToSend = "Sorry, I don't have a record of a recent connection / disconnection. ";
 	}
+	else {
+		// Default to 1 request if no arg specified. Ensure we don't exceed array length.
+		let numToRead = intArg ? Math.min(intArg, events.length) : 1;
+
+		// Grab the last (numEventsRequested) elements of the stored events (not exceeding the array's length)
+		// Convert each of them to a legible string, and then concatenate them to each other with newlines
+		let strEvents = events.slice(-1 * numToRead)
+			.reverse() // Array stores events in chronological order
+			.join('\n');
+
+		// If there's more than 1 event being returned, add a prefix line so that the records line up nicely
+		messageToSend = numToRead === 1 ? strEvents : `The ${numToRead} most recent events are: \n` + strEvents;
+	}
+	return messageToSend;
 }
 
 /**
- * @typedef		{object}	ConnectionEvent A user connect / disconnect event
- * @property	{Date}		timestamp		The time of the event
- * @property	{string}	userName		The user who connected or disconnected
- * @property	{string}	eventType		A description of the event type - connect or disconnect
- * @property	{string}	channelName		The name of the channel appropriate to the event
+ * Given the whole, exact name of a Magic, the Gathering card,
+ * retrieve a URL for an image of the card
+ * @param {string} cardArgs The name of the card, a a string array
  */
+async function getMtgCardUrlByName(cardArgs) {
+	const scryfallApiUrl = 'https://api.scryfall.com/cards/named?format=image&fuzzy=';
+
+	let fetchUrl = scryfallApiUrl + cardArgs.join('+');
+	console.log("fetching from "+fetchUrl);
+	const fetchPromise = await fetch(fetchUrl);
+
+	if (fetchPromise.redirected) {
+		return fetchPromise.url;
+	}
+	else {
+		return `I couldn't find an image for the Magic: the Gathering card named "${cardArgs.join(' ')}". You may need to be more specific.`;
+	}	
+}
