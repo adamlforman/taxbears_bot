@@ -112,6 +112,7 @@ client.on('message', function (message) {
 			}
 
 			let allEvents = storedConnectionEvents;
+			let messageToSend = "";
 
 			if (intArg > 1 && intArg > allEvents.length) {
 				intArg = allEvents.length;
@@ -122,7 +123,7 @@ client.on('message', function (message) {
 
 				if (obj) {
 					let legibleEventString = timeSince(obj.timestamp) + ', ' + obj.userName + ' ' + obj.eventType + ': ' + obj.channelName;
-					message.channel.send(legibleEventString);
+					messageToSend += legibleEventString + '\n';
 				}
 			
 				else {
@@ -130,10 +131,11 @@ client.on('message', function (message) {
 					if (i > 1 && intArg !== 1) {
 						break;
 					}
-					message.channel.send("Sorry, I don't have a record of a recent connection / disconnection. ");
+					messageToSend = "Sorry, I don't have a record of a recent connection / disconnection. ";
 					break;
 				}
 			}
+			message.channel.send(messageToSend);
 			break;
 
 		// Just add any case commands if you want to..
