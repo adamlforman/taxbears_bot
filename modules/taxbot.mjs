@@ -1,6 +1,7 @@
 import { Client } from 'discord.js';
 import { readFileSync, createWriteStream } from 'fs';
 import fetch from "node-fetch";
+import { ConnectionEvent } from './connectionEvent.mjs';
 
 export default class TaxBot {
 	
@@ -150,7 +151,7 @@ export default class TaxBot {
 						// Convert each of them to a legible string, and then concatenate them to each other with newlines
 						let strEvents = this.storedConnectionEvents.slice(-1 * numToRead)
 																	.reverse()	// Array stores events in chronological order
-																	.map((conEvent) => stringifyConnectionEvent(conEvent))
+																	//.map((conEvent) => stringifyConnectionEvent(conEvent))
 																	.join('\n');
 						
 						// If there's more than 1 event being returned, add a prefix line so that the records line up nicely
@@ -170,77 +171,11 @@ export default class TaxBot {
 		 */
 		this.client.on('voiceStateUpdate', (oldMember, newMember) => {
 			
-			let connectEvent = this.parseVoiceStateChange(oldMember, newMember);
+			let connectEvent = new ConnectionEvent(oldMember, newMember);
 			
 			this.saveConnectionEvent(connectEvent);
 			
 		});
-	}
-										
-	/**
-	 * Parse a user connection / disconnection event (a Vocie State Update)
-	 * into an object with the data we care about for the !whowasthat command
-	 * @param	{Discord.VoiceState}	oldMember The pre-update voice state of the user
-	 * @param	{Discord.VoiceState}	newMember The post-update voice state of the user
-	 * @returns	{ConnectionEvent}	An object capturing the data of the event
-	 */
-	parseVoiceStateChange(oldMember, newMember) {
-		
-		// Determine the old channel, if there was one
-		let oldUserChannel = "";
-		if (oldMember && oldMember != {}) {
-			let ch = oldMember.channel;
-			if (ch) {
-				oldUserChannel = ch.name;
-			}
-		}
-		
-		// Determine the new channel, if there was one
-		let newUserChannel = ""
-		if (newMember && newMember != {}) {
-			let ch = newMember.channel;
-			if (ch) {
-				newUserChannel = ch.name;
-			}
-		}
-		
-		// Determine the user name, being careful
-		// about accessing potentially null objects
-		let userName = "placeHolderUserName"
-		if (newMember && newMember != {}) {
-			userName = newMember.member.user.username
-		}
-		else if (oldMember != {}) {
-			userName = oldMember.member.user.username
-		}
-		
-		// Determine what type of event this was
-		let channelName = (newUserChannel || oldUserChannel);
-		let eventType = "moved to channel";
-		
-		if (newUserChannel && !oldUserChannel) {
-			// Connect event
-			eventType = "connected to channel";
-		}
-		else if (!newUserChannel && oldUserChannel) {
-			// Disconnect event
-			eventType = "disconnected from channel";
-		}
-		else {
-			// Channel move event - discard
-			return;
-		}
-											
-		let timestamp = Date.now();
-		
-		let connectEvent = {
-			timestamp,
-			userName,
-			eventType,
-			channelName
-		};
-		
-		return connectEvent;
 	}
 
 	/**
@@ -260,51 +195,6 @@ export default class TaxBot {
 
 		// Update the file backup
 		this.logWriteStream.write(JSON.stringify(this.storedConnectionEvents));
-	}
-
-	/**
-	 * Parse a connection event into a legible string
-	 * @param {ConnectionEvent} connectEvent The event to parse
-	 * @returns {string} A legible string representing the event
-	 */
-	stringifyConnectionEvent(ev) {
-		// "{2 minutes ago}, {ArsanL} {disconnected from channel}: {Internet Starlite}. "
-		return `${this.timeSince(ev.timestamp)}, ${ev.userName} ${ev.eventType}: ${ev.channelName}.`;
-	}
-
-	/**
-	 * Given a Date, return a legible relative string description of
-	 * it (e.g. "5 seconds ago, 1 hour ago")
-	 * @param {Date} timestamp 
-	 */
-	timeSince(timestamp) {
-		let dateTime;
-		if (timestamp) {
-			dateTime = new Date(timestamp);
-		}
-		else {
-			return "<Time Parse Error>";
-		}
-		var now = new Date(),
-		secondsPast = (now.getTime() - dateTime) / 1000;
-		if (secondsPast < 60) {
-			let numSecs = parseInt(secondsPast);
-			return `${numSecs} second${numSecs > 1 ? 's' : ''} ago`;
-		}
-		if (secondsPast < 3600) {
-			let numMins = parseInt(secondsPast / 60);
-			return `${numMins} minute${numMins > 1 ? 's' : ''} ago`;
-		}
-		if (secondsPast <= 86400) {
-			let numHrs = parseInt(secondsPast / 3600);
-			return `${numHrs} hour${numHrs > 1 ? 's' : ''} ago`;
-		}
-		if (secondsPast > 86400) {
-			let day = dateTime.getDate();
-			let month = dateTime.toDateString().match(/ [a-zA-Z]*/)[0].replace(" ", "");
-			let year = dateTime.getFullYear() == now.getFullYear() ? "" : " " + dateTime.getFullYear();
-			return "On " + day + " " + month + year;
-		}
 	}
 
 	/**

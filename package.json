@@ -1,6 +1,6 @@
 {
 	"name": "taxbears_bot",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "A Discord bot for the Taxbears server",
 	"main": "main.mjs",
 	"type": "module",
