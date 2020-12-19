@@ -22,7 +22,11 @@ let logWriteStream = () => {
 		flags: "w+"
 	});
 };
-let storedConnectionEvents = [];
+
+/**
+ * @type {ConnectionEvent[]}
+ */
+let storedConnectionEvents = new Array();
 const maxEventsStored = 5;
 
 client.on('ready', function (evt) {
@@ -105,36 +109,29 @@ client.on('message', function (message) {
 
 			break;
 		case 'whowasthat':
+			// read in the first argument as a specified number of events to return
 			let intArg = parseInt(args.shift());
+
+			let messageToSend = "An unexpected error occurred while retrieving recent connection events. ";
 			
-			if (!intArg) {
-				intArg = 1;
+			if (!storedConnectionEvents || !storedConnectionEvents.length) {
+				messageToSend = "Sorry, I don't have a record of a recent connection / disconnection. ";
 			}
+			else {				
+				// Default to 1 request if no arg specified. Ensure we don't exceed array length.
+				let numToRead = intArg ? Math.min(intArg,storedConnectionEvents.length) : 1;
 
-			let allEvents = storedConnectionEvents;
-			let messageToSend = "";
-
-			if (intArg > 1 && intArg > allEvents.length) {
-				intArg = allEvents.length;
+				// Grab the last (numEventsRequested) elements of the stored events (not exceeding the array's length)
+				// Convert each of them to a legible string, and then concatenate them to each other with newlines
+				let strEvents = storedConnectionEvents.slice(-1 * numToRead)
+													  .reverse()	// Array stores events in chronological order
+													  .map((conEvent) => stringifyConnectionEvent(conEvent))
+													  .join('\n');
+				
+				// If there's more than 1 event being returned, add a prefix line so that the records line up nicely
+				messageToSend = numToRead === 1 ? strEvents : `The ${numToRead} most recent events are: \n` + strEvents;
 			}
-			for (let i = 1; i <= intArg; i++) {
-
-				let obj = allEvents[allEvents.length - i];
-
-				if (obj) {
-					let legibleEventString = timeSince(obj.timestamp) + ', ' + obj.userName + ' ' + obj.eventType + ': ' + obj.channelName;
-					messageToSend += legibleEventString + '\n';
-				}
 			
-				else {
-					// if we have fewer than requested records, don't print apology when we run out
-					if (i > 1 && intArg !== 1) {
-						break;
-					}
-					messageToSend = "Sorry, I don't have a record of a recent connection / disconnection. ";
-					break;
-				}
-			}
 			message.channel.send(messageToSend);
 			break;
 
@@ -142,8 +139,28 @@ client.on('message', function (message) {
 	}
 });
 
+/**
+ * When a user changes voice channels (including connect/disconnect),
+ * parse and save the event for later access from the !whowasthat command
+ */
 client.on('voiceStateUpdate', (oldMember, newMember) => {
 	
+	let connectEvent = parseVoiceStateChange(oldMember, newMember);
+
+	saveConnectionEvent(connectEvent);
+
+});
+
+/**
+ * Parse a user connection / disconnection event (a Vocie State Update)
+ * into an object with the data we care about for the !whowasthat command
+ * @param	{Discord.VoiceState}	oldMember The pre-update voice state of the user
+ * @param	{Discord.VoiceState}	newMember The post-update voice state of the user
+ * @returns	{ConnectionEvent}	An object capturing the data of the event
+ */
+var parseVoiceStateChange = function(oldMember, newMember) {
+
+	// Determine the old channel, if there was one
 	let oldUserChannel = "";
 	if (oldMember && oldMember != {}) {
 		let ch = oldMember.channel;
@@ -152,6 +169,7 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 		}
 	}
 	
+	// Determine the new channel, if there was one
 	let newUserChannel = ""
 	if (newMember && newMember != {}) {
 		let ch = newMember.channel;
@@ -160,6 +178,8 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 		}
 	}
 	
+	// Determine the user name, being careful
+	// about accessing potentially null objects
 	let userName = "placeHolderUserName"
 	if (newMember && newMember != {}) {
 		userName = newMember.member.user.username
@@ -168,16 +188,20 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 		userName = oldMember.member.user.username
 	}
 	
+	// Determine what type of event this was
 	let channelName = (newUserChannel || oldUserChannel);
 	let eventType = "moved to channel";
-		
+	
 	if (newUserChannel && !oldUserChannel) {
+		// Connect event
 		eventType = "connected to channel";
 	}
 	else if (!newUserChannel && oldUserChannel) {
+		// Disconnect event
 		eventType = "disconnected from channel";
 	}
 	else {
+		// Channel move event - discard
 		return;
 	}
 	
@@ -190,24 +214,41 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 		channelName
 	};
 
+	return connectEvent;
+}
 
+/**
+ * Save a connection event for later retrieval by
+ * the !whowasthat command
+ * @param	{ConnectionEvent}	connectEvent	The event to be saved
+ */
+var saveConnectionEvent = function(connectEvent) {
+
+	// Add it to our in-memory array
 	storedConnectionEvents.push(connectEvent);
+
+	// Purge any events above our max non-creepiness storage limit
 	while(storedConnectionEvents.length > maxEventsStored) {
 		storedConnectionEvents.shift();
 	}
 
+	// Update the file backup
 	logWriteStream().write(JSON.stringify(storedConnectionEvents));
-
-	/*
-	let eventJson = '\n' + JSON.stringify(connectEvent);
-
-	logWriteStream.write(eventJson, () => {
-		console.log("Wrote connection event to stream. ");
-	});*/
-});
+}
 
 /**
- * 
+ * Parse a connection event into a legible string
+ * @param {ConnectionEvent} connectEvent The event to parse
+ * @returns {string} A legible string representing the event
+ */
+var stringifyConnectionEvent = function(ev) {
+	// "{2 minutes ago}, {ArsanL} {disconnected from channel}: {Internet Starlite}. "
+	return `${timeSince(ev.timestamp)}, ${ev.userName} ${ev.eventType}: ${ev.channelName}.`;
+}
+
+/**
+ * Given a Date, return a legible relative string description of
+ * it (e.g. "5 seconds ago, 1 hour ago")
  * @param {Date} timestamp 
  */
 var timeSince = function(timestamp) {
@@ -259,3 +300,11 @@ var getMtgCardUrlByName = async function(cardArgs) {
 		return `I couldn't find an image for the Magic: the Gathering card named "${cardArgs.join(' ')}". You may need to be more specific.`;
 	}	
 }
+
+/**
+ * @typedef		{object}	ConnectionEvent A user connect / disconnect event
+ * @property	{Date}		timestamp		The time of the event
+ * @property	{string}	userName		The user who connected or disconnected
+ * @property	{string}	eventType		A description of the event type - connect or disconnect
+ * @property	{string}	channelName		The name of the channel appropriate to the event
+ */
