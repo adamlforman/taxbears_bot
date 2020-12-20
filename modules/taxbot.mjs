@@ -1,5 +1,4 @@
 import { Client } from 'discord.js';
-import { readFile, writeFile } from 'fs';
 import fetch from "node-fetch";
 import { ConnectionEvent } from './connectionEvent.mjs';
 
@@ -24,9 +23,10 @@ export default class TaxBot {
 	init() {
 		if (!this.initialized) {			
 
-			this.storedConnectionEvents = parseLogFile(this.config.logFilePath);
-
-			this.lastSavedLogs = Date.now();
+			/**
+			 * @type {ConnectionEvent[]}
+			 */
+			this.storedConnectionEvents = new Array();
 			
 			this.initialized = true;
 		}
@@ -162,61 +162,7 @@ export default class TaxBot {
 		while (this.storedConnectionEvents.length > this.config.maxEventsStored) {
 			this.storedConnectionEvents.shift();
 		}
-
-		// If we've passed our save interval, write the logs out to file
-		let currentTime = Date.now();
-		if ((currentTime - this.lastSavedLogs) > this.config.saveLogsInterval) {
-			this.lastSavedLogs = currentTime;
-			console.log(`${Date.now()}: Saving logs to file. `);
-
-			let stringLogs = JSON.stringify(this.storedConnectionEvents);
-
-			// Update the file backup
-			writeFile(this.config.logFilePath, stringLogs, (err) => {
-				if (err) {
-					console.log(`There was an error writing the saved logs to file: ${err}. `);
-					console.log(`The logs: ${stringLogs}`);
-				}
-			});
-		}
 	}
-}
-
-/**
- * 
- * @param filePath 
- * @param options 
- * @returns {ConnectionEvent[]} The logs as an array of ConnectionEvent
- */
-function parseLogFile(filePath, options) {
-    
-    /**
-     * @type {ConnectionEvent[]}
-     */
-    let returnEvents = new Array();
-    
-    const readFileOptions = options || {				
-        encoding: "utf-8",
-        flag: 'r'				
-    };
-
-    readFile(filePath, readFileOptions, (err, data) => {
-		if (err) {
-			console.log(`Error reading in log file from path ${filePath} - ${err}`);
-		}
-		else {
-			console.log(`Read in log file from ${filePath}`);
-			if (data) {
-				returnEvents = JSON.parse(data);
-				console.log(`Read in ${this.storedConnectionEvents.length} logs from log file. `);
-			}
-			else {
-				console.log(`No logs found in file at ${filePath}. `);
-			}
-		}
-	});
-
-    return returnEvents;
 }
 
 function parseConnectionEvents(args, events) {
