@@ -53,87 +53,7 @@ export default class TaxBot {
 
 		this.buildConnection();
 				
-		this.client.on('message', (message) => {
-			let messageContent = message.content;
-			
-			// Our bot needs to know if it will execute a command
-			// It will listen for messages that will start with `!`
-			if (!messageContent.startsWith(this.config.prefix) || message.author.bot)  {
-				return;
-			}
-
-			// We don't respond to messages from bots (including this one)
-			if (message.author.bot) {
-				return;
-			}
-			
-			let args = messageContent.substring(this.config.prefix.length).split(' ');
-			
-			let cmd = args.shift().toLowerCase();
-			
-			switch (cmd) {
-				case 'ping':
-					message.channel.send('pong!');
-					break;
-				case 'pong':
-					message.channel.send('ping!');
-					break;
-				case 'echo':
-					if (args.length) {
-						message.channel.send(args.join(' '));
-					}
-					break;
-				case 'whoami':
-					let whoReply = 'You are ' + message.author.username + '.';
-					message.channel.send(whoReply);
-					break;
-				case 'pizzq':	// Hi Karli
-				case 'pizza':
-					let pizza = '😀  🍕🍕🍕🍕  😊';
-					message.channel.send(pizza);
-					break;
-				case 'mtg':
-				case 'mtgcard':					
-					const errorMessage = "An unexpected error occurred retrieving the card image: ";
-					
-					let cardMsg = errorMessage;
-					let foundCard = false;
-					
-					// use promises to send a "searching..." message
-					// if the fetch takes more than 1 second
-					const cardPromise = getMtgCardUrlByName(args);
-					const delayPromise = new Promise((resolve, reject) => {
-						setTimeout(resolve,1000);
-					});
-					
-					delayPromise.then((_) => {
-						if (!foundCard) {
-							message.channel.send(`Searching for an image of the card '${args.join(' ')}'...`);
-						}
-					}).catch((reason) => {
-						cardMsg = errorMessage + reason;
-					});
-					
-					cardPromise.then((cardUrl) => {
-						cardMsg = cardUrl;				
-						foundCard = true;
-					}).catch((reason) => {
-						cardMsg = errorMessage + reason;
-					});
-
-					message.channel.send(cardMsg);
-					break;
-				case 'whowasthat':
-					const events = this.storedConnectionEvents;
-
-					let whoMsg = parseConnectionEvents(args, events);
-					
-					message.channel.send(whoMsg);
-					break;
-												
-				// Just add any case commands if you want to..
-			}
-		});
+		this.registerCommands();
 										
 		/**
 		 * When a user changes voice channels (including connect/disconnect),
@@ -145,6 +65,72 @@ export default class TaxBot {
 			
 			this.saveConnectionEvent(connectEvent);
 			
+		});
+	}
+
+	registerCommands() {
+		this.client.on('message', (message) => {
+			const messageContent = message.content;
+			const channel = message.channel;
+
+			// Our bot needs to know if it will execute a command
+			// It will listen for messages that will start with `!`
+			if (!messageContent.startsWith(this.config.prefix)) {
+				return;
+			}
+
+			// We don't respond to messages from bots (including this one)
+			if (message.author.bot) {
+				return;
+			}
+
+			let args = messageContent.substring(this.config.prefix.length).split(' ');
+
+			let cmd = args.shift().toLowerCase();
+
+			switch (cmd) {
+				case 'echo':
+					if (args.length) {
+						channel.send(args.join(' '));
+					}
+					break;
+
+				case 'help':
+				case 'man':
+					message.author.send(getHelpMessage(this.config, args));
+					message.react('👍');
+					break;
+				case 'mtg':
+					case 'mtgcard':
+						mtgCard(args, channel);
+						break;
+		
+				case 'ping':
+					channel.send('pong!');
+					break;
+
+				case 'pong':
+					channel.send('ping!');
+					break;
+
+				case 'pizzq': // Hi Karli
+					message.react('<:karli:230881965702643722>');
+				case 'pizza':
+					channel.send('😀  🍕🍕🍕🍕  😊');
+					break;
+
+				case 'whoami':
+					channel.send(`You are ${message.author.username}. `);
+					break;
+	
+				case 'whowasthat':
+					let whoMsg = parseConnectionEvents(args, this.storedConnectionEvents);
+					channel.send(whoMsg);
+					break;
+				
+				default:
+					return;
+			}
 		});
 	}
 
@@ -163,6 +149,37 @@ export default class TaxBot {
 			this.storedConnectionEvents.shift();
 		}
 	}
+}
+
+function mtgCard(args, channel) {
+	const errorMessage = "An unexpected error occurred retrieving the card image: ";
+
+	let cardMsg = errorMessage;
+	let foundCard = false;
+
+	// use promises to send a "searching..." message
+	// if the fetch takes more than 1 second
+	const cardPromise = getMtgCardUrlByName(args);
+	const delayPromise = new Promise((resolve, reject) => {
+		setTimeout(resolve, 1000);
+	});
+
+	delayPromise.then((_) => {
+		if (!foundCard) {
+			channel.send(`Searching for an image of the card '${args.join(' ')}'...`);
+		}
+	}).catch((reason) => {
+		cardMsg = errorMessage + reason;
+	});
+
+	cardPromise.then((cardUrl) => {
+		cardMsg = cardUrl;
+		foundCard = true;
+	}).catch((reason) => {
+		cardMsg = errorMessage + reason;
+	});
+
+	channel.send(cardMsg);
 }
 
 function parseConnectionEvents(args, events) {
@@ -208,4 +225,122 @@ async function getMtgCardUrlByName(cardArgs) {
 	else {
 		return `I couldn't find an image for the Magic: the Gathering card named "${cardArgs.join(' ')}". You may need to be more specific.`;
 	}	
+}
+
+function getHelpMessage(config, args){
+
+	let cmdName = null;
+	if (args && args.length) 
+	{
+		cmdName = args.shift().toLowerCase();
+	} 
+	if (cmdName && cmdName.startsWith(config.prefix)) {
+		cmdName = cmdName.substring(config.prefix.length);
+	}
+
+	let helpMessage = "There was an error interpreting your request. Please check your message and try again. ";
+	switch (cmdName) {
+		default:
+			helpMessage = `Sorry, I don't have any help for the command '${cmdName}'. `;
+			break;
+		case null:
+			helpMessage = `Hi! I'm a basic Discord bot, with some limited command-response functionality.\r`+
+							`For a list of commands, use\r\t${config.prefix}commands\n`+
+							`For help with a particular command, use\r`+
+							`\t${config.prefix}help <command>\r\t\tOR\r\t${config.prefix}man <command>\r`;
+			break;
+		
+		case 'echo':
+			let echoGuide = {
+				name: 'echo',
+				shortDescription: `Echoes the given text back to you`,
+				synopsis: `echo TEXT`,
+				description: `Responds in the same channel with the given TEXT. Does not respond at all if there is no given TEXT.`,
+			};
+			helpMessage = parseHelpObject(echoGuide);
+			break;
+
+		case 'help':
+			let helpGuide = {
+				name: 'help',
+				shortDescription: `Sends you help documentation`,
+				synonyms: ['help','man'],
+				synopsis: `help [COMMAND]`,
+				description: `Whispers you with help documentation. If COMMAND is specified, gives specific usage information. `,
+			};
+			helpMessage = parseHelpObject(helpGuide);
+			break;
+
+		case 'mtg':
+		case 'mtgcard':
+			let mtgGuide = {
+				name: 'mtg',
+				shortDescription: 'Finds an image of a Magic: the Gathering card by name',
+				synonyms: ['mtg', 'mtgcard'],
+				synopsis: `mtg CARDNAME`,
+				description: "Responds with an image of the Magic: the Gathering card most closely matching CARDNAME. \n" +
+								"\tIf a single card cannot be determined by the given name, will fail and respond with an error message. "+
+								"Uses fuzzy string matching. API for card images provided by <http://scryfall.com/> \n" +
+								"\tIf your search is taking unexpectedly long, will respond with a 'searching' message first. ",
+			};
+			helpMessage = parseHelpObject(mtgGuide);
+			break;
+
+		case 'ping':
+			let pingGuide = {
+				name: 'ping',
+				description: "Responds with 'pong!'. "
+			}
+			helpMessage = parseHelpObject(pingGuide);
+			break;
+
+		case 'pong':
+			let pongGuide = {
+				name: 'pong',
+				description: "Responds with 'ping!'. "
+			}
+			helpMessage = parseHelpObject(pongGuide);
+			break;
+
+		case 'pizzq': // Hi Karli
+		case 'pizza':
+			let pizzaGuide = {
+				name: 'pizza',
+				synonyms: ['pizza', 'pizzq'],
+				description: "Responds with '😀  🍕🍕🍕🍕  😊'. "
+			}
+			helpMessage = parseHelpObject(pizzaGuide);
+			break;
+
+		case 'whoami':
+			let whoAmIGuide = {
+				name: 'whoami',
+				description: "Responds with your discord username. "				
+			}
+			helpMessage = parseHelpObject(whoAmIGuide);
+			break;
+
+		case 'whowasthat':
+			let whoWasThatGuide = {
+				name: 'whowasthat',
+				shortDescription: `Responds with recent connect/disconnect events`,
+				synopsis: `whowasthat [NUM]`,
+				description: `Responds with the most recent voice channel change event (connection, disconnection, move). \n`+
+								`\tIf NUM is specified, will give the NUM most recent events, up to ${config.maxEventsStored}. `,
+			}
+			helpMessage = parseHelpObject(whoWasThatGuide);
+			break;
+	}
+
+	return helpMessage;
+}
+
+function parseHelpObject(helpObj) {
+	const header = `Help Documentation - ${helpObj.name}\r`;
+	const nameSec = `NAME\r\t${helpObj.name} - ${helpObj.shortDescription || helpObj.description}\r\r`;
+	const synonymsSec = `SYNONYMS\r\t${helpObj.synonyms && helpObj.synonyms.join('\r\t')}\r\r`;
+	const synopsisSec = `SYNOPSIS\r\t${helpObj.synopsis}\r\r`;
+	const descSec = `DESCRIPTION\r\t${helpObj.description}\r\r`;
+
+	return `${header}${nameSec}${helpObj.synonyms ? synonymsSec : ""}${helpObj.synopsis ? synopsisSec : ""}${helpObj.description ? descSec : ""}`;
 }
