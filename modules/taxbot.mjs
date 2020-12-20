@@ -1,5 +1,5 @@
 import { Client } from 'discord.js';
-import { readFileSync, createWriteStream } from 'fs';
+import { readFile, writeFile } from 'fs';
 import fetch from "node-fetch";
 import { ConnectionEvent } from './connectionEvent.mjs';
 
@@ -9,33 +9,25 @@ export default class TaxBot {
 	constructor() {
 		this.initialized = false;
 
-		this.logFile = null;
-		this.logWriteStream = null;
+		const _config = {				
+			// This is the auth token. Find a better place to put this
+			token: "NzA5MjMxOTYwNTQ2ODY5Mjk4.Xri6fQ.chYhbLLegBS4NGNfa1AbofMufNk",
+			prefix: '!',
+			logFilePath: "connectionEvents.txt",
+			maxEventsStored: 5,
+			saveLogsInterval: 5000
+		}
 
-		this.client = null;		
+		this.config = _config;
 	}
 
 	init() {
-		if (!this.initialized) {
-			// This is the auth token. Find a better place to put this
-			this.token = "NzA5MjMxOTYwNTQ2ODY5Mjk4.Xri6fQ.chYhbLLegBS4NGNfa1AbofMufNk"
+		if (!this.initialized) {			
 
-			const logFilePath = "..\\log.txt";
+			this.storedConnectionEvents = parseLogFile(this.config.logFilePath);
 
-			this.logFile = readFileSync(logFilePath, {
-				encoding: "utf-8",
-				flag: 'as+'
-			});
-			this.logWriteStream = createWriteStream(logFilePath, {
-				flags: "w+"
-			});
+			this.lastSavedLogs = Date.now();
 			
-			/**
-			 * @type {ConnectionEvent[]}
-			 */
-			this.storedConnectionEvents = new Array();
-			this.maxEventsStored = 5;
-
 			this.initialized = true;
 		}
 	}
@@ -43,6 +35,13 @@ export default class TaxBot {
 	buildConnection() {
 		// Initialize Discord Bot
 		this.client = new Client();
+		
+		this.client.login(this.config.token).then((val) => {
+			console.log('Connected to Discord Server.');
+		}).catch((reason) => {
+			console.log('Error connecting to Discord Server.');
+			console.log(reason);
+		});
 	}
 
 	/**
@@ -53,39 +52,22 @@ export default class TaxBot {
 		this.init();
 
 		this.buildConnection();
-
-		this.client.on('ready', function (evt) {
-			console.log('Connected to Discord server.');
-			
-			console.log('Finding log file...');
-			
-			let savedLogs = this.logFile;
-			
-			if (savedLogs) {
-				this.storedConnectionEvents = JSON.parse(savedLogs);
 				
-				console.log("Read in " + this.storedConnectionEvents.length + " logs from log file.");	
-			}			
-			else {
-				console.log("No logs found in file.");
-			}
-			
-		});
-		
-		this.client.login(this.token);
-		
-		const prefix = '!';
-		
 		this.client.on('message', (message) => {
 			let messageContent = message.content;
 			
 			// Our bot needs to know if it will execute a command
 			// It will listen for messages that will start with `!`
-			if (!messageContent.startsWith(prefix) || message.author.bot)  {
+			if (!messageContent.startsWith(this.config.prefix) || message.author.bot)  {
+				return;
+			}
+
+			// We don't respond to messages from bots (including this one)
+			if (message.author.bot) {
 				return;
 			}
 			
-			let args = messageContent.substring(1).split(' ');
+			let args = messageContent.substring(this.config.prefix.length).split(' ');
 			
 			let cmd = args.shift().toLowerCase();
 			
@@ -105,6 +87,7 @@ export default class TaxBot {
 					let whoReply = 'You are ' + message.author.username + '.';
 					message.channel.send(whoReply);
 					break;
+				case 'pizzq':	// Hi Karli
 				case 'pizza':
 					let pizza = '😀  🍕🍕🍕🍕  😊';
 					message.channel.send(pizza);
@@ -113,7 +96,7 @@ export default class TaxBot {
 				case 'mtgcard':					
 					const errorMessage = "An unexpected error occurred retrieving the card image: ";
 					
-					let messageToSend = errorMessage;
+					let cardMsg = errorMessage;
 					let foundCard = false;
 					
 					// use promises to send a "searching..." message
@@ -128,24 +111,24 @@ export default class TaxBot {
 							message.channel.send(`Searching for an image of the card '${args.join(' ')}'...`);
 						}
 					}).catch((reason) => {
-						messageToSend = errorMessage + reason;
+						cardMsg = errorMessage + reason;
 					});
 					
 					cardPromise.then((cardUrl) => {
-						messageToSend = cardUrl;				
+						cardMsg = cardUrl;				
 						foundCard = true;
 					}).catch((reason) => {
-						messageToSend = errorMessage + reason;
+						cardMsg = errorMessage + reason;
 					});
 
-					message.channel.send(messageToSend);
+					message.channel.send(cardMsg);
 					break;
 				case 'whowasthat':
 					const events = this.storedConnectionEvents;
 
-					let messageToSend = parseConnectionEvents(args, events);
+					let whoMsg = parseConnectionEvents(args, events);
 					
-					message.channel.send(messageToSend);
+					message.channel.send(whoMsg);
 					break;
 												
 				// Just add any case commands if you want to..
@@ -176,13 +159,64 @@ export default class TaxBot {
 		this.storedConnectionEvents.push(connectEvent);
 
 		// Purge any events above our max non-creepiness storage limit
-		while(this.storedConnectionEvents.length > this.maxEventsStored) {
+		while (this.storedConnectionEvents.length > this.config.maxEventsStored) {
 			this.storedConnectionEvents.shift();
 		}
 
-		// Update the file backup
-		this.logWriteStream.write(JSON.stringify(this.storedConnectionEvents));
+		// If we've passed our save interval, write the logs out to file
+		let currentTime = Date.now();
+		if ((currentTime - this.lastSavedLogs) > this.config.saveLogsInterval) {
+			this.lastSavedLogs = currentTime;
+			console.log(`${Date.now()}: Saving logs to file. `);
+
+			let stringLogs = JSON.stringify(this.storedConnectionEvents);
+
+			// Update the file backup
+			writeFile(this.config.logFilePath, stringLogs, (err) => {
+				if (err) {
+					console.log(`There was an error writing the saved logs to file: ${err}. `);
+					console.log(`The logs: ${stringLogs}`);
+				}
+			});
+		}
 	}
+}
+
+/**
+ * 
+ * @param filePath 
+ * @param options 
+ * @returns {ConnectionEvent[]} The logs as an array of ConnectionEvent
+ */
+function parseLogFile(filePath, options) {
+    
+    /**
+     * @type {ConnectionEvent[]}
+     */
+    let returnEvents = new Array();
+    
+    const readFileOptions = options || {				
+        encoding: "utf-8",
+        flag: 'r'				
+    };
+
+    readFile(filePath, readFileOptions, (err, data) => {
+		if (err) {
+			console.log(`Error reading in log file from path ${filePath} - ${err}`);
+		}
+		else {
+			console.log(`Read in log file from ${filePath}`);
+			if (data) {
+				returnEvents = JSON.parse(data);
+				console.log(`Read in ${this.storedConnectionEvents.length} logs from log file. `);
+			}
+			else {
+				console.log(`No logs found in file at ${filePath}. `);
+			}
+		}
+	});
+
+    return returnEvents;
 }
 
 function parseConnectionEvents(args, events) {

@@ -1,4 +1,5 @@
 import { VoiceState } from "discord.js";
+import { readFile } from 'fs';
 
 export class ConnectionEvent {
     /**
@@ -54,7 +55,6 @@ export class ConnectionEvent {
 		// "{2 minutes ago}, {ArsanL} {disconnected from channel}: {Internet Starlite}. "
 		return `${timeSince(this.timestamp)}, ${this.userName} ${this.eventType}: ${this.channelName}.`;
 	}
-
 }
 
 /**
