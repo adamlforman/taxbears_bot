@@ -89,6 +89,10 @@ export default class TaxBot {
 			let cmd = args.shift().toLowerCase();
 
 			switch (cmd) {
+				case 'commands':
+					message.author.send(getCommandNames());
+					message.react('👍');
+					break;
 				case 'echo':
 					if (args.length) {
 						channel.send(args.join(' '));
@@ -227,6 +231,61 @@ async function getMtgCardUrlByName(cardArgs) {
 	}	
 }
 
+const echoGuide = {
+	name: 'echo',
+	shortDescription: `Echoes the given text back to you`,
+	synopsis: `echo TEXT`,
+	description: `Responds in the same channel with the given TEXT. Does not respond at all if there is no given TEXT.`,
+};
+const helpGuide = {
+	name: 'help',
+	shortDescription: `Sends you help documentation`,
+	synonyms: ['help','man'],
+	synopsis: `help [COMMAND]`,
+	description: `Whispers you with help documentation. If COMMAND is specified, gives specific usage information. `,
+};
+const mtgGuide = {
+	name: 'mtg',
+	shortDescription: 'Finds an image of a Magic: the Gathering card by name',
+	synonyms: ['mtg', 'mtgcard'],
+	synopsis: `mtg CARDNAME`,
+	description: "Responds with an image of the Magic: the Gathering card most closely matching CARDNAME. \n" +
+					"\tIf a single card cannot be determined by the given name, will fail and respond with an error message. "+
+					"Uses fuzzy string matching. API for card images provided by <http://scryfall.com/> \n" +
+					"\tIf your search is taking unexpectedly long, will respond with a 'searching' message first. ",
+};
+const pingGuide = {
+	name: 'ping',
+	description: "Responds with 'pong!'"
+};
+const pongGuide = {
+	name: 'pong',
+	description: "Responds with 'ping!'"
+};
+const pizzaGuide = {
+	name: 'pizza',
+	shortDescription: "Reward the bot with some pizza",
+	synonyms: ['pizza', 'pizzq'],
+	description: "Responds with '😀  🍕🍕🍕🍕  😊'. "
+};
+const whoAmIGuide = {
+	name: 'whoami',
+	description: "Responds with your discord username"				
+};
+const whoWasThatGuide = {
+	name: 'whowasthat',
+	shortDescription: `Responds with recent connect/disconnect events`,
+	synopsis: `whowasthat [NUM]`,
+	description: `Responds with the most recent voice channel change event (connection, disconnection, move). \n`+
+					`\tIf NUM is specified, will give the NUM most recent events, up to a configured maximum. `,
+};
+
+const helpGuides = [echoGuide, helpGuide, mtgGuide, pingGuide, pongGuide, pizzaGuide, whoAmIGuide, whoWasThatGuide];
+
+function getCommandNames() {
+	return "Commands:\n\`\`\`" + helpGuides.map(g => (g.name.padEnd(15)) + (g.shortDescription || g.description)).join("\n") + "\`\`\`";
+}
+
 function getHelpMessage(config, args){
 
 	let cmdName = null;
@@ -250,84 +309,37 @@ function getHelpMessage(config, args){
 							`\t${config.prefix}help <command>\r\t\tOR\r\t${config.prefix}man <command>\r`;
 			break;
 		
-		case 'echo':
-			let echoGuide = {
-				name: 'echo',
-				shortDescription: `Echoes the given text back to you`,
-				synopsis: `echo TEXT`,
-				description: `Responds in the same channel with the given TEXT. Does not respond at all if there is no given TEXT.`,
-			};
+		case 'echo':			
 			helpMessage = parseHelpObject(echoGuide);
 			break;
 
-		case 'help':
-			let helpGuide = {
-				name: 'help',
-				shortDescription: `Sends you help documentation`,
-				synonyms: ['help','man'],
-				synopsis: `help [COMMAND]`,
-				description: `Whispers you with help documentation. If COMMAND is specified, gives specific usage information. `,
-			};
+		case 'help':			
 			helpMessage = parseHelpObject(helpGuide);
 			break;
 
 		case 'mtg':
-		case 'mtgcard':
-			let mtgGuide = {
-				name: 'mtg',
-				shortDescription: 'Finds an image of a Magic: the Gathering card by name',
-				synonyms: ['mtg', 'mtgcard'],
-				synopsis: `mtg CARDNAME`,
-				description: "Responds with an image of the Magic: the Gathering card most closely matching CARDNAME. \n" +
-								"\tIf a single card cannot be determined by the given name, will fail and respond with an error message. "+
-								"Uses fuzzy string matching. API for card images provided by <http://scryfall.com/> \n" +
-								"\tIf your search is taking unexpectedly long, will respond with a 'searching' message first. ",
-			};
+		case 'mtgcard':			
 			helpMessage = parseHelpObject(mtgGuide);
 			break;
 
 		case 'ping':
-			let pingGuide = {
-				name: 'ping',
-				description: "Responds with 'pong!'. "
-			}
 			helpMessage = parseHelpObject(pingGuide);
 			break;
 
 		case 'pong':
-			let pongGuide = {
-				name: 'pong',
-				description: "Responds with 'ping!'. "
-			}
 			helpMessage = parseHelpObject(pongGuide);
 			break;
 
 		case 'pizzq': // Hi Karli
 		case 'pizza':
-			let pizzaGuide = {
-				name: 'pizza',
-				synonyms: ['pizza', 'pizzq'],
-				description: "Responds with '😀  🍕🍕🍕🍕  😊'. "
-			}
 			helpMessage = parseHelpObject(pizzaGuide);
 			break;
 
 		case 'whoami':
-			let whoAmIGuide = {
-				name: 'whoami',
-				description: "Responds with your discord username. "				
-			}
 			helpMessage = parseHelpObject(whoAmIGuide);
 			break;
 
 		case 'whowasthat':
-			let whoWasThatGuide = {
-				name: 'whowasthat',
-				shortDescription: `Responds with recent connect/disconnect events`,
-				synopsis: `whowasthat [NUM]`,
-				description: `Responds with the most recent voice channel change event (connection, disconnection, move). \n`+
-								`\tIf NUM is specified, will give the NUM most recent events, up to ${config.maxEventsStored}. `,
-			}
 			helpMessage = parseHelpObject(whoWasThatGuide);
 			break;
 	}
