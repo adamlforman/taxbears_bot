@@ -173,17 +173,15 @@ function mtgCard(args, channel) {
 			channel.send(`Searching for an image of the card '${args.join(' ')}'...`);
 		}
 	}).catch((reason) => {
-		cardMsg = errorMessage + reason;
+		channel.send(errorMessage + reason);
 	});
 
 	cardPromise.then((cardUrl) => {
-		cardMsg = cardUrl;
 		foundCard = true;
+		channel.send(cardUrl);
 	}).catch((reason) => {
-		cardMsg = errorMessage + reason;
+		channel.send(errorMessage + reason);
 	});
-
-	channel.send(cardMsg);
 }
 
 function parseConnectionEvents(args, events) {
