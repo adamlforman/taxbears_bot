@@ -3,8 +3,7 @@ import fetch from "node-fetch";
 import { ConnectionEvent } from './connectionEvent.mjs';
 
 export default class TaxBot {
-	
-	
+		
 	constructor() {
 		this.initialized = false;
 
@@ -34,7 +33,7 @@ export default class TaxBot {
 
 	buildConnection() {
 		// Initialize Discord Bot
-		this.client = new Client();
+		this.client = new Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] });
 		
 		this.client.login(this.config.token).then((val) => {
 			console.log('Connected to Discord Server.');
@@ -69,10 +68,40 @@ export default class TaxBot {
 			}
 			
 		});
+
+		this.client.on('messageReactionAdd', async (reaction, user) => {
+			// When we receive a reaction we check if the reaction is partial or not
+			if (reaction.partial) {
+				// If the message this reaction belongs to was removed the fetching might result in an API error, which we need to handle
+				try {
+					await reaction.fetch();
+				} catch (error) {
+					console.error('Something went wrong when fetching the message: ', error);
+					// Return as `reaction.message.author` may be undefined/null
+					return;
+				}
+			}
+			if (reaction.message.author.bot && !user.bot) {
+				if (reaction.emoji.name === '🗑️' && reaction.message.deletable) {
+					await reaction.message.delete();
+				}
+			}
+		});
 	}
 
 	registerCommands() {
-		this.client.on('message', (message) => {
+		this.client.on('message', async (message) => {
+			// When we receive a message we check if the message is partial or not
+			if (message.partial) {
+				// If the message was removed the fetching might result in an API error, which we need to handle
+				try {
+					await message.fetch();
+				} catch (error) {
+					console.error('Something went wrong when fetching the message: ', error);
+					// Return as `message.author` may be undefined/null
+					return;
+				}
+			}
 			const messageContent = message.content;
 			const channel = message.channel;
 
@@ -98,7 +127,7 @@ export default class TaxBot {
 					break;
 				case 'echo':
 					if (args.length) {
-						channel.send(args.join(' '));
+						sendToChannel(channel, args.join(' '));
 					}
 					break;
 
@@ -113,26 +142,26 @@ export default class TaxBot {
 						break;
 		
 				case 'ping':
-					channel.send('pong!');
+					sendToChannel(channel, 'pong!');
 					break;
 
 				case 'pong':
-					channel.send('ping!');
+					sendToChannel(channel, 'ping!');
 					break;
 
 				case 'pizzq': // Hi Karli
 					message.react('<:karli:230881965702643722>');
 				case 'pizza':
-					channel.send('😀  🍕🍕🍕🍕  😊');
+					sendToChannel(channel, '😀  🍕🍕🍕🍕  😊');
 					break;
 
 				case 'whoami':
-					channel.send(`You are ${message.author.username}. `);
+					sendToChannel(channel, `You are ${message.author.username}. `);
 					break;
 	
 				case 'whowasthat':
 					let whoMsg = parseConnectionEvents(args, this.storedConnectionEvents);
-					channel.send(whoMsg);
+					sendToChannel(channel, whoMsg);
 					break;
 				
 				default:
@@ -158,6 +187,21 @@ export default class TaxBot {
 	}
 }
 
+/**
+ * 
+ * @param {TextChannel} channel
+ * @param msgStr 
+ */
+function sendToChannel(channel, msgStr) {
+	const msgProm = channel.send(msgStr);
+	msgProm.then((message) => {
+		message.react('🗑️');
+	})
+	.catch((err) => {
+		console.error(err);
+	})
+}
+
 function mtgCard(args, channel) {
 	const errorMessage = "An unexpected error occurred retrieving the card image: ";
 
@@ -173,17 +217,17 @@ function mtgCard(args, channel) {
 
 	delayPromise.then((_) => {
 		if (!foundCard) {
-			channel.send(`Searching for an image of the card '${args.join(' ')}'...`);
+			sendToChannel(channel, `Searching for an image of the card '${args.join(' ')}'...`);
 		}
 	}).catch((reason) => {
-		channel.send(errorMessage + reason);
+		sendToChannel(channel, errorMessage + reason);
 	});
 
 	cardPromise.then((cardUrl) => {
 		foundCard = true;
-		channel.send(cardUrl);
+		sendToChannel(channel, cardUrl);
 	}).catch((reason) => {
-		channel.send(errorMessage + reason);
+		sendToChannel(channel, errorMessage + reason);
 	});
 }
 
