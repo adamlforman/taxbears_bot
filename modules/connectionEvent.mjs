@@ -1,5 +1,4 @@
 import { VoiceState } from "discord.js";
-import { readFile } from 'fs';
 
 export class ConnectionEvent {
     /**
@@ -28,17 +27,29 @@ export class ConnectionEvent {
 		
         let channelName = (newUserChannel || oldUserChannel);
         
-		// Determine what type of event this was
-		let eventType = "moved to channel";
-		
-		if (newUserChannel && !oldUserChannel) {
-			// Connect event
-			eventType = "connected to channel";
-		}
-		else if (!newUserChannel && oldUserChannel) {
-			// Disconnect event
-			eventType = "disconnected from channel";
-		}
+        // Determine what type of event this was
+        // Default to null
+		let eventType = null;
+        if (newUserChannel && oldUserChannel) {
+            if (newUserChannel !== oldUserChannel) {
+                eventType = "moved to channel";
+            }
+            else {
+                // This is an event like a mute-toggle that we don't wish to save
+                eventType = null;
+            } 
+        }
+        else {
+            if (newUserChannel && !oldUserChannel) {
+                // Connect event
+                eventType = "connected to channel";
+            }
+            else if (!newUserChannel && oldUserChannel) {
+                // Disconnect event
+                eventType = "disconnected from channel";
+            }
+        }
+    
 											
 		this.timestamp = Date.now();
         this.userName = userName;

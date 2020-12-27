@@ -63,7 +63,10 @@ export default class TaxBot {
 			
 			let connectEvent = new ConnectionEvent(oldMember, newMember);
 			
-			this.saveConnectionEvent(connectEvent);
+			// The eventType is set to null if the change event parse fails
+			if (connectEvent.eventType) {
+				this.saveConnectionEvent(connectEvent);
+			}
 			
 		});
 	}

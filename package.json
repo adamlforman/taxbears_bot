@@ -1,14 +1,12 @@
 {
 	"name": "taxbears_bot",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"description": "A Discord bot for the Taxbears server",
 	"main": "main.mjs",
 	"type": "module",
 	"author": "Adam Forman",
 	"dependencies": {
 		"discord.js": "^12.5.1",
-		"fs": "0.0.1-security",
-		"node-fetch": "^2.6.1",
-		"winston": "^3.3.3"
+		"node-fetch": "^2.6.1"
 	}
 }
