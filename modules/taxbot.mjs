@@ -1,15 +1,20 @@
 import { Client } from 'discord.js';
-import fetch from "node-fetch";
+import fetch from 'node-fetch';
 import { ConnectionEvent } from './connectionEvent.mjs';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 export default class TaxBot {
 		
 	constructor() {
 		this.initialized = false;
 
-		const _config = {				
-			// This is the auth token. Find a better place to put this
-			token: "NzA5MjMxOTYwNTQ2ODY5Mjk4.Xri6fQ.chYhbLLegBS4NGNfa1AbofMufNk",
+		// parse the .env file
+		require('dotenv').config();
+
+		const _config = {
+			// This is read in from the un-committed .env file in the root folder
+			token: process.env.AUTH_TOKEN,
 			prefix: '!',
 			logFilePath: "connectionEvents.txt",
 			maxEventsStored: 5,
