@@ -199,14 +199,13 @@ export default class TaxBot {
  */
 function sendToChannel(channel, msgStr, deleteReact = true) {
 	const msgProm = channel.send(msgStr);
-	msgProm.then((message) => {
-		if (deleteReact) {
+	if (deleteReact) {
+		msgProm.then((message) => {
 			message.react('🗑️');
-		}
-	})
-		.catch((err) => {
+		}).catch((err) => {
 			console.error(err);
-		})
+		});
+	}
 }
 
 function mtgCard(args, channel) {
