@@ -5,7 +5,7 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
 export default class TaxBot {
-		
+
 	constructor() {
 		this.initialized = false;
 
@@ -25,13 +25,13 @@ export default class TaxBot {
 	}
 
 	init() {
-		if (!this.initialized) {			
+		if (!this.initialized) {
 
 			/**
 			 * @type {ConnectionEvent[]}
 			 */
 			this.storedConnectionEvents = new Array();
-			
+
 			this.initialized = true;
 		}
 	}
@@ -39,7 +39,7 @@ export default class TaxBot {
 	buildConnection() {
 		// Initialize Discord Bot
 		this.client = new Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] });
-		
+
 		this.client.login(this.config.token).then((val) => {
 			console.log('Connected to Discord Server.');
 		}).catch((reason) => {
@@ -56,22 +56,22 @@ export default class TaxBot {
 		this.init();
 
 		this.buildConnection();
-				
+
 		this.registerCommands();
-										
+
 		/**
 		 * When a user changes voice channels (including connect/disconnect),
 		 * parse and save the event for later access from the !whowasthat command
 		 */
 		this.client.on('voiceStateUpdate', (oldMember, newMember) => {
-			
+
 			let connectEvent = new ConnectionEvent(oldMember, newMember);
-			
+
 			// The eventType is set to null if the change event parse fails
 			if (connectEvent.eventType) {
 				this.saveConnectionEvent(connectEvent);
 			}
-			
+
 		});
 
 		this.client.on('messageReactionAdd', async (reaction, user) => {
@@ -142,10 +142,10 @@ export default class TaxBot {
 					message.react('👍');
 					break;
 				case 'mtg':
-					case 'mtgcard':
-						mtgCard(args, channel);
-						break;
-		
+				case 'mtgcard':
+					mtgCard(args, channel);
+					break;
+
 				case 'ping':
 					sendToChannel(channel, 'pong!');
 					break;
@@ -163,12 +163,12 @@ export default class TaxBot {
 				case 'whoami':
 					sendToChannel(channel, `You are ${message.author.username}. `);
 					break;
-	
+
 				case 'whowasthat':
 					let whoMsg = parseConnectionEvents(args, this.storedConnectionEvents);
 					sendToChannel(channel, whoMsg);
 					break;
-				
+
 				default:
 					return;
 			}
@@ -197,14 +197,16 @@ export default class TaxBot {
  * @param {TextChannel} channel
  * @param msgStr 
  */
-function sendToChannel(channel, msgStr) {
+function sendToChannel(channel, msgStr, deleteReact = true) {
 	const msgProm = channel.send(msgStr);
 	msgProm.then((message) => {
-		message.react('🗑️');
+		if (deleteReact) {
+			message.react('🗑️');
+		}
 	})
-	.catch((err) => {
-		console.error(err);
-	})
+		.catch((err) => {
+			console.error(err);
+		})
 }
 
 function mtgCard(args, channel) {
@@ -230,7 +232,7 @@ function mtgCard(args, channel) {
 
 	cardPromise.then((cardUrl) => {
 		foundCard = true;
-		sendToChannel(channel, cardUrl);
+		sendToChannel(channel, cardUrl, false);
 	}).catch((reason) => {
 		sendToChannel(channel, errorMessage + reason);
 	});
@@ -270,7 +272,6 @@ async function getMtgCardUrlByName(cardArgs) {
 	const scryfallApiUrl = 'https://api.scryfall.com/cards/named?format=image&fuzzy=';
 
 	let fetchUrl = scryfallApiUrl + cardArgs.join('+');
-	console.log("fetching from "+fetchUrl);
 	const fetchPromise = await fetch(fetchUrl);
 
 	if (fetchPromise.redirected) {
@@ -278,7 +279,7 @@ async function getMtgCardUrlByName(cardArgs) {
 	}
 	else {
 		return `I couldn't find an image for the Magic: the Gathering card named "${cardArgs.join(' ')}". You may need to be more specific.`;
-	}	
+	}
 }
 
 const echoGuide = {
@@ -290,7 +291,7 @@ const echoGuide = {
 const helpGuide = {
 	name: 'help',
 	shortDescription: `Sends you help documentation`,
-	synonyms: ['help','man'],
+	synonyms: ['help', 'man'],
 	synopsis: `help [COMMAND]`,
 	description: `Whispers you with help documentation. If COMMAND is specified, gives specific usage information. `,
 };
@@ -300,9 +301,9 @@ const mtgGuide = {
 	synonyms: ['mtg', 'mtgcard'],
 	synopsis: `mtg CARDNAME`,
 	description: "Responds with an image of the Magic: the Gathering card most closely matching CARDNAME. \n" +
-					"\tIf a single card cannot be determined by the given name, will fail and respond with an error message. "+
-					"Uses fuzzy string matching. API for card images provided by <http://scryfall.com/> \n" +
-					"\tIf your search is taking unexpectedly long, will respond with a 'searching' message first. ",
+		"\tIf a single card cannot be determined by the given name, will fail and respond with an error message. " +
+		"Uses fuzzy string matching. API for card images provided by <http://scryfall.com/> \n" +
+		"\tIf your search is taking unexpectedly long, will respond with a 'searching' message first. ",
 };
 const pingGuide = {
 	name: 'ping',
@@ -320,14 +321,14 @@ const pizzaGuide = {
 };
 const whoAmIGuide = {
 	name: 'whoami',
-	description: "Responds with your discord username"				
+	description: "Responds with your discord username"
 };
 const whoWasThatGuide = {
 	name: 'whowasthat',
 	shortDescription: `Responds with recent connect/disconnect events`,
 	synopsis: `whowasthat [NUM]`,
-	description: `Responds with the most recent voice channel change event (connection, disconnection, move). \n`+
-					`\tIf NUM is specified, will give the NUM most recent events, up to a configured maximum. `,
+	description: `Responds with the most recent voice channel change event (connection, disconnection, move). \n` +
+		`\tIf NUM is specified, will give the NUM most recent events, up to a configured maximum. `,
 };
 
 const helpGuides = [echoGuide, helpGuide, mtgGuide, pingGuide, pongGuide, pizzaGuide, whoAmIGuide, whoWasThatGuide];
@@ -336,13 +337,12 @@ function getCommandNames() {
 	return "Commands:\n\`\`\`" + helpGuides.map(g => (g.name.padEnd(15)) + (g.shortDescription || g.description)).join("\n") + "\`\`\`";
 }
 
-function getHelpMessage(config, args){
+function getHelpMessage(config, args) {
 
 	let cmdName = null;
-	if (args && args.length) 
-	{
+	if (args && args.length) {
 		cmdName = args.shift().toLowerCase();
-	} 
+	}
 	if (cmdName && cmdName.startsWith(config.prefix)) {
 		cmdName = cmdName.substring(config.prefix.length);
 	}
@@ -353,22 +353,22 @@ function getHelpMessage(config, args){
 			helpMessage = `Sorry, I don't have any help for the command '${cmdName}'. `;
 			break;
 		case null:
-			helpMessage = `Hi! I'm a basic Discord bot, with some limited command-response functionality.\r`+
-							`For a list of commands, use\r\t${config.prefix}commands\n`+
-							`For help with a particular command, use\r`+
-							`\t${config.prefix}help <command>\r\t\tOR\r\t${config.prefix}man <command>\r`;
+			helpMessage = `Hi! I'm a basic Discord bot, with some limited command-response functionality.\r` +
+				`For a list of commands, use\r\t${config.prefix}commands\n` +
+				`For help with a particular command, use\r` +
+				`\t${config.prefix}help <command>\r\t\tOR\r\t${config.prefix}man <command>\r`;
 			break;
-		
-		case 'echo':			
+
+		case 'echo':
 			helpMessage = parseHelpObject(echoGuide);
 			break;
 
-		case 'help':			
+		case 'help':
 			helpMessage = parseHelpObject(helpGuide);
 			break;
 
 		case 'mtg':
-		case 'mtgcard':			
+		case 'mtgcard':
 			helpMessage = parseHelpObject(mtgGuide);
 			break;
 

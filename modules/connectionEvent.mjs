@@ -3,33 +3,33 @@ import { VoiceState } from "discord.js";
 export class ConnectionEvent {
     /**
      * 
-	 * @param	{VoiceState}	oldMember The pre-update voice state of the user
-	 * @param	{VoiceState}	newMember The post-update voice state of the user
+     * @param	{VoiceState}	oldMember The pre-update voice state of the user
+     * @param	{VoiceState}	newMember The post-update voice state of the user
      * @param newMember 
      */
     constructor(oldMember, newMember) {
 
-		// Determine the old channel, if there was one
-		let oldUserChannel = getChannel(oldMember);
-		
-		// Determine the new channel, if there was one
-		let newUserChannel = getChannel(newMember);
-		
-		// Determine the user name, being careful
-		// about accessing potentially null objects
-		let userName = "placeHolderUserName";
-		if (newMember && newMember != {}) {
-			userName = newMember.member.user.username
-		}
-		else if (oldMember != {}) {
-			userName = oldMember.member.user.username
-		}
-		
+        // Determine the old channel, if there was one
+        let oldUserChannel = getChannel(oldMember);
+
+        // Determine the new channel, if there was one
+        let newUserChannel = getChannel(newMember);
+
+        // Determine the user name, being careful
+        // about accessing potentially null objects
+        let userName = "placeHolderUserName";
+        if (newMember && newMember != {}) {
+            userName = newMember.member.user.username
+        }
+        else if (oldMember != {}) {
+            userName = oldMember.member.user.username
+        }
+
         let channelName = (newUserChannel || oldUserChannel);
-        
+
         // Determine what type of event this was
         // Default to null
-		let eventType = null;
+        let eventType = null;
         if (newUserChannel && oldUserChannel) {
             if (newUserChannel !== oldUserChannel) {
                 eventType = "moved to channel";
@@ -37,7 +37,7 @@ export class ConnectionEvent {
             else {
                 // This is an event like a mute-toggle that we don't wish to save
                 eventType = null;
-            } 
+            }
         }
         else {
             if (newUserChannel && !oldUserChannel) {
@@ -49,23 +49,23 @@ export class ConnectionEvent {
                 eventType = "disconnected from channel";
             }
         }
-    
-											
-		this.timestamp = Date.now();
+
+
+        this.timestamp = Date.now();
         this.userName = userName;
         this.eventType = eventType;
         this.channelName = channelName;
     }
 
-	/**
-	 * Parse a connection event into a legible string
-	 * @param {ConnectionEvent} connectEvent The event to parse
-	 * @returns {string} A legible string representing the event
-	 */
-	toString() {
-		// "{2 minutes ago}, {ArsanL} {disconnected from channel}: {Internet Starlite}. "
-		return `${timeSince(this.timestamp)}, ${this.userName} ${this.eventType}: ${this.channelName}.`;
-	}
+    /**
+     * Parse a connection event into a legible string
+     * @param {ConnectionEvent} connectEvent The event to parse
+     * @returns {string} A legible string representing the event
+     */
+    toString() {
+        // "{2 minutes ago}, {ArsanL} {disconnected from channel}: {Internet Starlite}. "
+        return `${timeSince(this.timestamp)}, ${this.userName} ${this.eventType}: ${this.channelName}.`;
+    }
 }
 
 /**
@@ -97,7 +97,7 @@ function timeSince(timestamp) {
         return "<Time Parse Error>";
     }
     var now = new Date(),
-    secondsPast = (now.getTime() - dateTime) / 1000;
+        secondsPast = (now.getTime() - dateTime) / 1000;
     if (secondsPast < 60) {
         let numSecs = parseInt(secondsPast);
         return `${numSecs} second${numSecs > 1 ? 's' : ''} ago`;
