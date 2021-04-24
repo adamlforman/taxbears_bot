@@ -1,7 +1,9 @@
-import { Client } from 'discord.js';
+import Discord from 'discord.js';
 import fetch from 'node-fetch';
 import { ConnectionEvent } from './connectionEvent.mjs';
 import { createRequire } from 'module';
+import parseTime from 'parse-duration';
+
 const require = createRequire(import.meta.url);
 
 export default class TaxBot {
@@ -38,7 +40,7 @@ export default class TaxBot {
 
 	buildConnection() {
 		// Initialize Discord Bot
-		this.client = new Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] });
+		this.client = new Discord.Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] });
 
 		this.client.login(this.config.token).then((val) => {
 			console.log('Connected to Discord Server.');
@@ -160,6 +162,11 @@ export default class TaxBot {
 					sendToChannel(channel, '😀  🍕🍕🍕🍕  😊');
 					break;
 
+				case 'remind':
+				case 'remindme':
+					createReminder(args, message);
+					break;
+
 				case 'whoami':
 					sendToChannel(channel, `You are ${message.author.username}. `);
 					break;
@@ -194,7 +201,7 @@ export default class TaxBot {
 
 /**
  * 
- * @param {TextChannel} channel
+ * @param {Discord.TextChannel} channel
  * @param msgStr 
  */
 function sendToChannel(channel, msgStr, deleteReact = true) {
@@ -208,10 +215,52 @@ function sendToChannel(channel, msgStr, deleteReact = true) {
 	}
 }
 
+/**
+ * Create a reminder for the user
+ * @param	{string[]}	args 
+ * @param	{Discord.Message}	message
+ */
+function createReminder(args, message) {
+	let timeString = args.join(' ');
+	let delayInMS = parseTime(timeString);
+	if (delayInMS == null) {
+		sendToChannel(message.channel, `Sorry, I couldn't parse "${timeString}" as a duration. Please use numerals for any numbers. `);
+	}
+	else if (delayInMS < 1) {
+		sendToChannel(message.channel, `I can't remind you in the past, sorry. `);
+	}
+	else if (delayInMS > 2147483647) {
+		sendToChannel(message.channel, `My maximum reminder delay is 24.86 days, sorry. `);
+	}
+	else {
+		setTimeout(() => {
+			message.author.send(`You requested a reminder about this: ${message.url}`);
+		}, delayInMS);
+		/*if (message.channel.type === 'dm') {
+			setTimeout(() => {
+				message.reply(`You requested a reminder about this: ${message.url}`);
+			}, delayInMS);
+		}
+		else {
+			setTimeout(() => {
+				message.reply(`You requested a reminder about this. `);
+			}, delayInMS);
+		}*/
+
+		let reminderTime = new Date(Date.now() + delayInMS);
+		message.author.send(`I will remind you at ${reminderTime.toLocaleString()}. `);
+		//sendToChannel(message.channel, `Timeout set for ${delayInMS} milliseconds. `);
+	}
+}
+
+/**
+ * 
+ * @param {string[]} args 
+ * @param {Discord.TextChannel} channel 
+ */
 function mtgCard(args, channel) {
 	const errorMessage = "An unexpected error occurred retrieving the card image: ";
 
-	let cardMsg = errorMessage;
 	let foundCard = false;
 
 	// use promises to send a "searching..." message
@@ -237,6 +286,11 @@ function mtgCard(args, channel) {
 	});
 }
 
+/**
+ * 
+ * @param {string[]} args 
+ * @param {ConnectionEvent[]} events 
+ */
 function parseConnectionEvents(args, events) {
 	// read in the first argument as a specified number of events to return
 	let intArg = parseInt(args.shift());
