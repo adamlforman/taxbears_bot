@@ -213,10 +213,16 @@ function mtgCard(args, channel) {
 
 	let cardMsg = errorMessage;
 	let foundCard = false;
+	let returnBacksideImage = false;
+
+	if (args[0] === "-b" || args[0] === "--back") {
+		args = args.slice(1);
+		returnBacksideImage = true;
+	}
 
 	// use promises to send a "searching..." message
 	// if the fetch takes more than 1 second
-	const cardPromise = getMtgCardUrlByName(args);
+	const cardPromise = getMtgCardUrlByName(args, returnBacksideImage);
 	const delayPromise = new Promise((resolve, reject) => {
 		setTimeout(resolve, 1000);
 	});
@@ -267,13 +273,16 @@ function parseConnectionEvents(args, events) {
  * retrieve a URL for an image of the card
  * @param {string} cardArgs The name of the card, a a string array
  */
-async function getMtgCardUrlByName(cardArgs) {
-	const scryfallApiUrl = 'https://api.scryfall.com/cards/named?format=image&fuzzy=';
+async function getMtgCardUrlByName(cardArgs, returnBacksideImage) {
+	const scryfallApiUrl = returnBacksideImage ? 'https://api.scryfall.com/cards/named?format=image&face=back&fuzzy=' : 'https://api.scryfall.com/cards/named?format=image&fuzzy=';
 
 	let fetchUrl = scryfallApiUrl + cardArgs.join('+');
 	const fetchPromise = await fetch(fetchUrl);
 
 	if (fetchPromise.redirected) {
+		if (fetchPromise.status == 422) {
+			return `That card doesn't have a back face.`;
+		}
 		return fetchPromise.url;
 	}
 	else {
