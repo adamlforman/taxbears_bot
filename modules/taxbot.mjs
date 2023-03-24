@@ -213,16 +213,10 @@ function mtgCard(args, channel) {
 
 	let cardMsg = errorMessage;
 	let foundCard = false;
-	let returnBacksideImage = false;
-
-	if (args[0] === "-b" || args[0] === "--back") {
-		args = args.slice(1);
-		returnBacksideImage = true;
-	}
 
 	// use promises to send a "searching..." message
 	// if the fetch takes more than 1 second
-	const cardPromise = getMtgCardUrlByName(args, returnBacksideImage);
+	const cardPromise = getMtgCardUrlByName(args);
 	const delayPromise = new Promise((resolve, reject) => {
 		setTimeout(resolve, 1000);
 	});
@@ -285,19 +279,13 @@ async function getMtgCardUrlByName(cardArgs) {
 	let foundUrl = ['',''];
 
 	if (fetchPromise.redirected) {
-		if (fetchPromise.status == 422) {
-			return `That card doesn't have a back face.`;
-		}
 		foundUrl[0] = fetchPromise.url;
 	}
 	else {
 		return `I couldn't find an image for the Magic: the Gathering card named "${cardArgs.join(' ')}". You may need to be more specific.`;
 	}
 
-	if (backsidePromise.redirected) {
-		if (backsidePromise.status == 422) {
-			return `That card doesn't have a back face.`;
-		}
+	if (backsidePromise.redirected && backsidePromise.status != 422) {
 		foundUrl[1] = backsidePromise.url;
 	}
 
