@@ -269,16 +269,27 @@ function parseConnectionEvents(args, events) {
  */
 async function getMtgCardUrlByName(cardArgs) {
 	const scryfallApiUrl = 'https://api.scryfall.com/cards/named?format=image&fuzzy=';
+	const backsideUrl = 'https://api.scryfall.com/cards/named?format=image&face=back&fuzzy=';
 
 	let fetchUrl = scryfallApiUrl + cardArgs.join('+');
+	let backsideFetchUrl = backsideUrl + cardArgs.join("+");
 	const fetchPromise = await fetch(fetchUrl);
+	const backsidePromise = await fetch(backsideFetchUrl);
+
+	let foundUrl = ['',''];
 
 	if (fetchPromise.redirected) {
-		return fetchPromise.url;
+		foundUrl[0] = fetchPromise.url;
 	}
 	else {
 		return `I couldn't find an image for the Magic: the Gathering card named "${cardArgs.join(' ')}". You may need to be more specific.`;
 	}
+
+	if (backsidePromise.redirected && backsidePromise.status != 422) {
+		foundUrl[1] = backsidePromise.url;
+	}
+
+	return foundUrl;
 }
 
 const echoGuide = {
