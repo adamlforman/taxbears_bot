@@ -273,21 +273,35 @@ function parseConnectionEvents(args, events) {
  * retrieve a URL for an image of the card
  * @param {string} cardArgs The name of the card, a a string array
  */
-async function getMtgCardUrlByName(cardArgs, returnBacksideImage) {
-	const scryfallApiUrl = returnBacksideImage ? 'https://api.scryfall.com/cards/named?format=image&face=back&fuzzy=' : 'https://api.scryfall.com/cards/named?format=image&fuzzy=';
+async function getMtgCardUrlByName(cardArgs) {
+	const scryfallApiUrl = 'https://api.scryfall.com/cards/named?format=image&fuzzy=';
+	const backsideUrl = 'https://api.scryfall.com/cards/named?format=image&face=back&fuzzy=';
 
 	let fetchUrl = scryfallApiUrl + cardArgs.join('+');
+	let backsideFetchUrl = backsideUrl + cardArgs.join("+");
 	const fetchPromise = await fetch(fetchUrl);
+	const backsidePromise = await fetch(backsideFetchUrl);
+
+	let foundUrl = ['',''];
 
 	if (fetchPromise.redirected) {
 		if (fetchPromise.status == 422) {
 			return `That card doesn't have a back face.`;
 		}
-		return fetchPromise.url;
+		foundUrl[0] = fetchPromise.url;
 	}
 	else {
 		return `I couldn't find an image for the Magic: the Gathering card named "${cardArgs.join(' ')}". You may need to be more specific.`;
 	}
+
+	if (backsidePromise.redirected) {
+		if (backsidePromise.status == 422) {
+			return `That card doesn't have a back face.`;
+		}
+		foundUrl[1] = backsidePromise.url;
+	}
+
+	return foundUrl;
 }
 
 const echoGuide = {
