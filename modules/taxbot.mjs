@@ -238,6 +238,15 @@ function mtgCard(args, channel) {
 }
 
 function parseConnectionEvents(args, events) {
+	let useRelative = true;
+	while (args[0] && args[0].startsWith('-')) {
+		let flag = args.shift();
+		switch (flag) {
+			case '-t':
+			case '--time':
+				useRelative = false;
+		}
+	}
 	// read in the first argument as a specified number of events to return
 	let intArg = parseInt(args.shift());
 
@@ -253,7 +262,8 @@ function parseConnectionEvents(args, events) {
 		// Grab the last (numEventsRequested) elements of the stored events (not exceeding the array's length)
 		// Convert each of them to a legible string, and then concatenate them to each other with newlines
 		let strEvents = events.slice(-1 * numToRead)
-			.reverse() // Array stores events in chronological order
+			.reverse()
+			.map((e) => e.toString(useRelative)) // Array stores events in chronological order
 			.join('\n');
 
 		// If there's more than 1 event being returned, add a prefix line so that the records line up nicely
@@ -276,7 +286,7 @@ async function getMtgCardUrlByName(cardArgs) {
 	const fetchPromise = await fetch(fetchUrl);
 	const backsidePromise = await fetch(backsideFetchUrl);
 
-	let foundUrl = ['',''];
+	let foundUrl = ['', ''];
 
 	if (fetchPromise.redirected) {
 		foundUrl[0] = fetchPromise.url;
@@ -337,6 +347,11 @@ const whoWasThatGuide = {
 	name: 'whowasthat',
 	shortDescription: `Responds with recent connect/disconnect events`,
 	synopsis: `whowasthat [NUM]`,
+	flags: {
+		name: '--time',
+		shortName: '-t',
+		description: "Displays the event time as an absolute time, instead of relative"
+	},
 	description: `Responds with the most recent voice channel change event (connection, disconnection, move). \n` +
 		`\tIf NUM is specified, will give the NUM most recent events, up to a configured maximum. `,
 };
@@ -413,6 +428,7 @@ function parseHelpObject(helpObj) {
 	const synonymsSec = `SYNONYMS\r\t${helpObj.synonyms && helpObj.synonyms.join('\r\t')}\r\r`;
 	const synopsisSec = `SYNOPSIS\r\t${helpObj.synopsis}\r\r`;
 	const descSec = `DESCRIPTION\r\t${helpObj.description}\r\r`;
+	const flags = helpObj.flags ? `FLAGS\r\t\`${helpObj.flags.name}\`, \`${helpObj.flags.shortName}\`\r\t${helpObj.flags.description}\r\r` : '';
 
-	return `${header}${nameSec}${helpObj.synonyms ? synonymsSec : ""}${helpObj.synopsis ? synopsisSec : ""}${helpObj.description ? descSec : ""}`;
+	return `${header}${nameSec}${helpObj.synonyms ? synonymsSec : ""}${flags}${helpObj.synopsis ? synopsisSec : ""}${helpObj.description ? descSec : ""}`;
 }

@@ -59,12 +59,16 @@ export class ConnectionEvent {
 
     /**
      * Parse a connection event into a legible string
-     * @param {ConnectionEvent} connectEvent The event to parse
+     * @param {boolean} useRelative Whether to 
      * @returns {string} A legible string representing the event
      */
-    toString() {
-        // "{2 minutes ago}, {ArsanL} {disconnected from channel}: {Internet Starlite}. "
-        return `${timeSince(this.timestamp)}, ${this.userName} ${this.eventType}: ${this.channelName}.`;
+    toString(useRelative = true) {
+        if (useRelative) {
+            // "{2 minutes ago}, {ArsanL} {disconnected from channel}: {Internet Starlite}. "
+            return `${timeSince(this.timestamp)}, ${this.userName} ${this.eventType}: ${this.channelName}.`;
+        } else {
+            return `<t:${Math.trunc(this.timestamp / 1000)}>, ${this.userName} ${this.eventType}: ${this.channelName}.`;
+        }
     }
 }
 
