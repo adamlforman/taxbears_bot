@@ -201,16 +201,17 @@ export default class TaxBot {
  * @param msgStr
  */
 function sendToChannel(channel, msgStr, deleteReact = true) {
-  const msgProm = channel.send(msgStr);
-  if (deleteReact) {
-    msgProm
-      .then((message) => {
-        message.react("🗑️");
-      })
-      .catch((err) => {
-        console.error(err);
-      });
+	if (msgStr.length > 2000) {
+    msgStr = msgStr.substring(0, 2000);
   }
+  const msgProm = channel.send(msgStr);
+	if (deleteReact) {
+		msgProm.then((message) => {
+			message.react('🗑️');
+		}).catch((err) => {
+			console.error(err);
+		});
+	}
 }
 
 function mtgCard(args, channel) {
@@ -296,24 +297,42 @@ function parseConnectionEvents(args, events) {
  * @param {string} cardArgs The name of the card, a a string array
  */
 async function getMtgCardUrlByName(cardArgs) {
-  const scryfallApiUrl =
+	const scryfallApiUrl =
     "https://api.scryfall.com/cards/named?format=image&fuzzy=";
   const backsideUrl =
     "https://api.scryfall.com/cards/named?format=image&face=back&fuzzy=";
 
-  let fetchUrl = scryfallApiUrl + cardArgs.join("+");
-  let backsideFetchUrl = backsideUrl + cardArgs.join("+");
+  const formattedArgs = cardArgs.join("+");
+
+  let fetchUrl = scryfallApiUrl + formattedArgs;
+  let backsideFetchUrl = backsideUrl + formattedArgs;
   const fetchPromise = await fetch(fetchUrl);
   const backsidePromise = await fetch(backsideFetchUrl);
 
   let foundUrl = ["", ""];
 
-  if (fetchPromise.redirected) {
+	if (fetchPromise.redirected) {
     foundUrl[0] = fetchPromise.url;
   } else {
-    return `I couldn't find an image for the Magic: the Gathering card named "${cardArgs.join(
-      " "
-    )}". You may need to be more specific.`;
+    const byNameJson = await fetchPromise.json();
+    if (byNameJson.type == "ambiguous") {
+      const searchApiUrl = "https://api.scryfall.com/cards/search?q=name:";
+      let searchUrl = searchApiUrl + formattedArgs;
+      const searchPromise = await fetch(searchUrl);
+      const searchJson = await searchPromise.json();
+      let foundNames = searchJson.data.map((card) => card.name);
+
+      let numFound =
+        foundNames.length >= 175 ? "way too many" : foundNames.length;
+      let humanReadableArgs = cardArgs.join(" ");
+      return `I found ${numFound} cards possibly matching "${humanReadableArgs}". Did you mean:\n${foundNames
+        .map((name) => `* ${name}`)
+        .join("\n")}`;
+    } else {
+      return `I couldn't find an image for the Magic: the Gathering card named "${cardArgs.join(
+        " "
+      )}". You may need to be more specific.`;
+    }
   }
 
   if (backsidePromise.redirected && backsidePromise.status != 422) {
