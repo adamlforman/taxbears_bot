@@ -201,30 +201,32 @@ export default class TaxBot {
  * @param msgStr
  */
 function sendToChannel(channel, msgStr, deleteReact = true) {
-	if (msgStr.length > 2000) {
+  // Truncate message length to avoid Discord rejecting it.
+  if (msgStr.length > 2000) {
     msgStr = msgStr.substring(0, 2000);
   }
   const msgProm = channel.send(msgStr);
-	if (deleteReact) {
-		msgProm.then((message) => {
-			message.react('🗑️');
-		}).catch((err) => {
-			console.error(err);
-		});
-	}
+  if (deleteReact) {
+    msgProm
+      .then((message) => {
+        message.react("🗑️");
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  }
 }
 
 function mtgCard(args, channel) {
   const errorMessage =
     "An unexpected error occurred retrieving the card image: ";
 
-  let cardMsg = errorMessage;
   let foundCard = false;
 
   // use promises to send a "searching..." message
   // if the fetch takes more than 1 second
   const cardPromise = getMtgCardUrlByName(args);
-  const delayPromise = new Promise((resolve, reject) => {
+  const delayPromise = new Promise((resolve) => {
     setTimeout(resolve, 1000);
   });
 
@@ -291,55 +293,66 @@ function parseConnectionEvents(args, events) {
   return messageToSend;
 }
 
+const byNameUrl = "https://api.scryfall.com/cards/named?format=image&fuzzy=";
+const byNameBacksideUrl =
+  "https://api.scryfall.com/cards/named?format=image&face=back&fuzzy=";
+const searchApiUrl = "https://api.scryfall.com/cards/search?q=name:";
+const maxDisambiguationOptions = 10;
+
 /**
  * Given the whole, exact name of a Magic, the Gathering card,
  * retrieve a URL for an image of the card
  * @param {string} cardArgs The name of the card, a a string array
  */
 async function getMtgCardUrlByName(cardArgs) {
-	const scryfallApiUrl =
-    "https://api.scryfall.com/cards/named?format=image&fuzzy=";
-  const backsideUrl =
-    "https://api.scryfall.com/cards/named?format=image&face=back&fuzzy=";
-
   const formattedArgs = cardArgs.join("+");
+  const humanReadableArgs = "`" + cardArgs.join(" ") + "`";
 
-  let fetchUrl = scryfallApiUrl + formattedArgs;
-  let backsideFetchUrl = backsideUrl + formattedArgs;
-  const fetchPromise = await fetch(fetchUrl);
-  const backsidePromise = await fetch(backsideFetchUrl);
+  const fetchPromise = await fetch(byNameUrl + formattedArgs);
+  const backsidePromise = await fetch(byNameBacksideUrl + formattedArgs);
 
   let foundUrl = ["", ""];
 
-	if (fetchPromise.redirected) {
+  // On a single result, Scryfall redirects the request to the image URL.
+  if (fetchPromise.redirected) {
     foundUrl[0] = fetchPromise.url;
-  } else {
-    const byNameJson = await fetchPromise.json();
-    if (byNameJson.type == "ambiguous") {
-      const searchApiUrl = "https://api.scryfall.com/cards/search?q=name:";
-      let searchUrl = searchApiUrl + formattedArgs;
-      const searchPromise = await fetch(searchUrl);
-      const searchJson = await searchPromise.json();
-      let foundNames = searchJson.data.map((card) => card.name);
 
-      let numFound =
-        foundNames.length >= 175 ? "way too many" : foundNames.length;
-      let humanReadableArgs = cardArgs.join(" ");
-      return `I found ${numFound} cards possibly matching "${humanReadableArgs}". Did you mean:\n${foundNames
-        .map((name) => `* ${name}`)
-        .join("\n")}`;
-    } else {
-      return `I couldn't find an image for the Magic: the Gathering card named "${cardArgs.join(
-        " "
-      )}". You may need to be more specific.`;
+    if (backsidePromise.redirected && backsidePromise.status != 422) {
+      foundUrl[1] = backsidePromise.url;
     }
+
+    return foundUrl;
   }
 
-  if (backsidePromise.redirected && backsidePromise.status != 422) {
-    foundUrl[1] = backsidePromise.url;
+  // Didn't get a redirect, so there's not an unambiguous result.
+  // Parse the actual response from Scryfall.
+  const byNameJson = await fetchPromise.json();
+
+  // If there was some error other than multiple results, just propagate that.
+  if (byNameJson.type != "ambiguous") {
+    return byNameJson.details ?? "Error parsing the error from Scryfall.";
   }
 
-  return foundUrl;
+  // Use the "Search" API to find all potential matches.
+  let searchUrl = searchApiUrl + formattedArgs;
+  const searchPromise = await fetch(searchUrl);
+  const searchJson = await searchPromise.json();
+  let foundNames = searchJson.data.map((card) => card.name);
+
+  const numFound = foundNames.length >= 175 ? "many" : foundNames.length;
+  if (foundNames.length > maxDisambiguationOptions) {
+    foundNames.splice(
+      /*start=*/ maxDisambiguationOptions,
+      /*deleteCount=*/ Infinity,
+      `... and ${numFound - maxDisambiguationOptions} more`
+    );
+  }
+
+  return (
+    `I found ${numFound} cards possibly matching ${humanReadableArgs}.` +
+    `Did you mean:\n` +
+    `${foundNames.map((name) => `* ${name}`).join("\n")}`
+  );
 }
 
 const echoGuide = {
