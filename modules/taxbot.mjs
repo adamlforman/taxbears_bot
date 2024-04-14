@@ -339,17 +339,25 @@ async function getMtgCardUrlByName(cardArgs) {
   const searchJson = await searchPromise.json();
   let foundNames = searchJson.data.map((card) => card.name);
 
-  const numFound = foundNames.length >= 175 ? "many" : foundNames.length;
-  if (foundNames.length > maxDisambiguationOptions) {
+  // If we have too many options to show, truncate them.
+  const length = foundNames.length;
+  let numFound = length;
+  if (length > maxDisambiguationOptions) {
+    let numExtra;
+    if (length < 175) {
+      numExtra = length - maxDisambiguationOptions;
+    } else {
+      numFound = numExtra = "many";
+    }
     foundNames.splice(
       /*start=*/ maxDisambiguationOptions,
       /*deleteCount=*/ Infinity,
-      `... and ${numFound - maxDisambiguationOptions} more`
+      `... and ${numExtra} more`
     );
   }
 
   return (
-    `I found ${numFound} cards possibly matching ${humanReadableArgs}.` +
+    `I found ${numFound} cards possibly matching ${humanReadableArgs}.\n` +
     `Did you mean:\n` +
     `${foundNames.map((name) => `* ${name}`).join("\n")}`
   );
