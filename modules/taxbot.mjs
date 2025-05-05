@@ -2,7 +2,7 @@ import fetch from "node-fetch";
 import { ConnectionEvent } from "./connectionEvent.mjs";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-const { Client, Events, GatewayIntentBits, Partials, } = require('discord.js');
+const { Client, Events, GatewayIntentBits, Partials, TextChannel } = require('discord.js');
 
 export default class TaxBot {
   constructor() {
@@ -39,7 +39,7 @@ export default class TaxBot {
     this.client = new Client({
       partials: [Partials.Message, Partials.Channel, Partials.Reaction,],
       intents: [
-        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.MessageContent, // Needed for embedded images (!mtgcard)
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMessageReactions,
@@ -259,7 +259,13 @@ function mtgCard(args, channel) {
   cardPromise
     .then((cardUrl) => {
       foundCard = true;
-      sendToChannel(channel, cardUrl, false);
+      if (Array.isArray(cardUrl)) {
+        for (const url of cardUrl) {
+          if (url) sendToChannel(channel, url, false);
+        }
+      } else if (cardUrl) {
+        sendToChannel(channel, cardUrl, false);
+      }
     })
     .catch((reason) => {
       sendToChannel(channel, errorMessage + reason);
