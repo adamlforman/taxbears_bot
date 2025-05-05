@@ -1,8 +1,8 @@
-import { Client } from "discord.js";
 import fetch from "node-fetch";
 import { ConnectionEvent } from "./connectionEvent.mjs";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
+const { Client, Events, GatewayIntentBits, Partials, } = require('discord.js');
 
 export default class TaxBot {
   constructor() {
@@ -36,7 +36,18 @@ export default class TaxBot {
 
   buildConnection() {
     // Initialize Discord Bot
-    this.client = new Client({ partials: ["MESSAGE", "CHANNEL", "REACTION"] });
+    this.client = new Client({
+      partials: [Partials.Message, Partials.Channel, Partials.Reaction,],
+      intents: [
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.DirectMessageReactions,
+      ],
+    });
 
     this.client
       .login(this.config.token)
@@ -59,11 +70,13 @@ export default class TaxBot {
 
     this.registerCommands();
 
+    this.client.on(Events.Debug, console.log);
+
     /**
      * When a user changes voice channels (including connect/disconnect),
      * parse and save the event for later access from the !whowasthat command
      */
-    this.client.on("voiceStateUpdate", (oldMember, newMember) => {
+    this.client.on(Events.VoiceStateUpdate, (oldMember, newMember) => {
       let connectEvent = new ConnectionEvent(oldMember, newMember);
 
       // The eventType is set to null if the change event parse fails
@@ -72,7 +85,7 @@ export default class TaxBot {
       }
     });
 
-    this.client.on("messageReactionAdd", async (reaction, user) => {
+    this.client.on(Events.MessageReactionAdd, async (reaction, user) => {
       // When we receive a reaction we check if the reaction is partial or not
       if (reaction.partial) {
         // If the message this reaction belongs to was removed the fetching might result in an API error, which we need to handle
@@ -96,7 +109,7 @@ export default class TaxBot {
   }
 
   registerCommands() {
-    this.client.on("message", async (message) => {
+    this.client.on(Events.MessageCreate, async (message) => {
       // When we receive a message we check if the message is partial or not
       if (message.partial) {
         // If the message was removed the fetching might result in an API error, which we need to handle
@@ -506,10 +519,10 @@ function parseHelpObject(helpObj) {
   const header = `Help Documentation - ${helpObj.name}\r`;
   const nameSec = `NAME\r\t${helpObj.name} - ${
     helpObj.shortDescription || helpObj.description
-  }\r\r`;
+    }\r\r`;
   const synonymsSec = `SYNONYMS\r\t${
     helpObj.synonyms && helpObj.synonyms.join("\r\t")
-  }\r\r`;
+    }\r\r`;
   const synopsisSec = `SYNOPSIS\r\t${helpObj.synopsis}\r\r`;
   const descSec = `DESCRIPTION\r\t${helpObj.description}\r\r`;
   const flags = helpObj.flags
@@ -518,5 +531,5 @@ function parseHelpObject(helpObj) {
 
   return `${header}${nameSec}${helpObj.synonyms ? synonymsSec : ""}${flags}${
     helpObj.synopsis ? synopsisSec : ""
-  }${helpObj.description ? descSec : ""}`;
+    }${helpObj.description ? descSec : ""}`;
 }
