@@ -18,6 +18,7 @@ export default class TaxBot {
       logFilePath: "connectionEvents.txt",
       maxEventsStored: 5,
       saveLogsInterval: 5000,
+      pingForPolls: process.env.PING_FOR_POLLS,
     };
 
     this.config = _config;
@@ -126,6 +127,15 @@ export default class TaxBot {
       }
       const messageContent = message.content;
       const channel = message.channel;
+
+      if (message.poll) {
+        if (this.config.pingForPolls) {
+          message.reply(`<@${this.config.pingForPolls}>`);
+        } else {
+          console.log(`Not pinging for poll, configured rolePing is: ${this.config.pingForPolls}`);
+        }
+        return;
+      }
 
       // Our bot needs to know if it will execute a command
       // It will listen for messages that will start with `!`
@@ -523,11 +533,9 @@ function getHelpMessage(config, args) {
 
 function parseHelpObject(helpObj) {
   const header = `Help Documentation - ${helpObj.name}\r`;
-  const nameSec = `NAME\r\t${helpObj.name} - ${
-    helpObj.shortDescription || helpObj.description
+  const nameSec = `NAME\r\t${helpObj.name} - ${helpObj.shortDescription || helpObj.description
     }\r\r`;
-  const synonymsSec = `SYNONYMS\r\t${
-    helpObj.synonyms && helpObj.synonyms.join("\r\t")
+  const synonymsSec = `SYNONYMS\r\t${helpObj.synonyms && helpObj.synonyms.join("\r\t")
     }\r\r`;
   const synopsisSec = `SYNOPSIS\r\t${helpObj.synopsis}\r\r`;
   const descSec = `DESCRIPTION\r\t${helpObj.description}\r\r`;
@@ -535,7 +543,6 @@ function parseHelpObject(helpObj) {
     ? `FLAGS\r\t\`${helpObj.flags.name}\`, \`${helpObj.flags.shortName}\`\r\t${helpObj.flags.description}\r\r`
     : "";
 
-  return `${header}${nameSec}${helpObj.synonyms ? synonymsSec : ""}${flags}${
-    helpObj.synopsis ? synopsisSec : ""
+  return `${header}${nameSec}${helpObj.synonyms ? synonymsSec : ""}${flags}${helpObj.synopsis ? synopsisSec : ""
     }${helpObj.description ? descSec : ""}`;
 }
