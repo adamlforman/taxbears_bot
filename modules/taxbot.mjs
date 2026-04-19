@@ -19,6 +19,7 @@ export default class TaxBot {
       maxEventsStored: 5,
       saveLogsInterval: 5000,
       pingForPolls: process.env.PING_FOR_POLLS,
+      pollIgnoreSubstring: process.env.POLL_IGNORE_SUBSTRING,
     };
 
     this.config = _config;
@@ -26,6 +27,8 @@ export default class TaxBot {
 
   init() {
     if (!this.initialized) {
+      console.log(`Starting initialization with config:\n${JSON.stringify(this.config)}`);
+
       /**
        * @type {ConnectionEvent[]}
        */
@@ -129,11 +132,16 @@ export default class TaxBot {
       const channel = message.channel;
 
       if (message.poll) {
-        if (this.config.pingForPolls) {
-          message.reply(`<@${this.config.pingForPolls}>`);
-        } else {
+        if (!this.config.pingForPolls) {
           console.log(`Not pinging for poll, configured rolePing is: ${this.config.pingForPolls}`);
+          return;
         }
+        if (message.poll.question.text.includes(this.config.pollIgnoreSubstring)) {
+          console.log(`Not pinging for poll, description was: <${message.poll.question.text}> which has ignore substring ${this.config.pollIgnoreSubstring}`);
+        } else {
+          message.reply(`<@${this.config.pingForPolls}>`);
+        }
+
         return;
       }
 
